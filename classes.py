@@ -1,3 +1,6 @@
+import random
+
+
 
 class Ship:
     pass
@@ -15,19 +18,28 @@ class Event:
 class Scrap(Event):
     """Scraps are basically an event which occurs when a user walks into a new room
     They have a monetary value based on their rarity type"""
-    def __init__(self,rarity:str, name:str, value:int) -> None:
+    def __init__(self,rarity:str) -> None:
         super().__init__(rarity)
-        self.name = name
-        self.value = value 
-
-    def info(self):
-        return (self.name,self.value)
+        match rarity: # Get a value for the scrap based on the rarity
+            case 'rare':
+                self.value = random.randint(200,250)
+                self.name = random.choice(["Block O' Gold","Reactor core","True rolex watch"])
+            case 'uncommon':
+                self.value =  random.randint(135, 185)
+                self.name = random.choice(["Candlestick","Airhorn","Rubiks Cube"])
+            case 'common':
+                self.value = random.randint(50, 100)
+                self.name = random.choice(["Fake rolex watch","May/June 2024 Maths paper","disapproving skull"])
     
-    def get_info(self):
-        values = self.info()
-        return f"{values[0].title()} has a value of {values[1]}"
-        
+    def __str__(self) -> str:
+        return random.choice([
+            f"Despite the overwhelming darkness... you find a {self.name}",
+            f"A {self.name} blocks your path...",
+            f"How peculiar... a {self.name} lies in front of you..."
+        ])
 
+    def inspect(self) -> str:
+        return f"{self.name.title()} has a value of {self.value}"
     
     def unique_event():
         """If any scrap is unique from the rest, they can use this module"""

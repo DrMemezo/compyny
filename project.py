@@ -14,10 +14,11 @@ def main():
     
     # Initialising the ship:
     # DISABLED: main_ship:Ship = ship_init()
+    main_ship:Ship = Ship()
     # Intro to the moon, a spooky description, etc. 
     # DISABLED: print_intro()
     # Play state
-    play(main_ship)
+    main_ship = play(main_ship)
     # End state
     end(main_ship)
 
@@ -74,15 +75,17 @@ def play(ship:Ship):
                 
         while action != "progress":
             try:
-                slow_print(classes.OPTIONS[action](events), wait=wait[action], style=styles[action])
+                slow_print(classes.OPTIONS[action](ship=ship, events=events), wait=wait[action], style=styles[action])
             except KeyError:
                 CONSOLE.print("psst... it maybe helpful to.. THINK.. about your actions...",
                               style=styles['advise'])
             finally:
-                action = input().strip()
+                action = input().strip().lower()
 
         # See if user lives or dies
         alive = random.choice([True, False])
+    
+    return ship
 
 def next_room():
     global CONSOLE

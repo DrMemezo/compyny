@@ -13,6 +13,9 @@ class Event:
 
     def is_hidden(self) -> bool:
         return self.hidden
+    
+    def show(self):
+        self.hidden = False
 
     def option(self, action:str):
         """Calls a function based on the action performed by the user"""
@@ -45,9 +48,6 @@ class Scrap(Event):
             f"You stumbled over a {self.name}, How clumsy!",
             f"In the corner of your eye, you spotted a {self.name}"
         ])
-
-    def option(self, action: str):
-        action = action.strip().lower()
     
     def unique_event():
         """If any scrap is unique from the rest, they can use this module"""
@@ -59,22 +59,29 @@ class Ship:
         self.scraps = 0
         self.name = name
     
-    def __add__(self, scrap:Scrap):
-        return self.scraps + scrap.value
+    def collect(self, scrap:Scrap):
+        self.scraps += scrap.value
 
 
-def inspect(events:list[Event]) -> str:
-    message = ""
+def inspect(**kwargs) -> str:
+    message = "There is nothing to inspect"
+    events:list[Event] = kwargs['events']
+    event_values = []
     for event in events:
         if type(event) is Scrap and not event.is_hidden():
-            message += f"{event.name.title()} has a value of {event.value}\n"
+            event_values.append(f"{event.name.title()} has a value of {event.value}\n")
+    
+    if event_values:
+        message = "".join(event_values)
     return message
 
-def find(events:list[Event]) -> str:
+def find(**kwargs) -> str:
     message = ""
+    events:list[Event] = kwargs['events']
     for event in events:
         try:
             if event.is_hidden():
+                event.show()
                 message += f"You Found a {event.name}\n"
         except:
             pass
@@ -83,25 +90,37 @@ def find(events:list[Event]) -> str:
 
     return message
 
-def think(*args) -> str:
+def think(**kwargs) -> str:
     message = "You think long and hard about what to do next...\n"
     message += "'find': Find and locate any hidden items (or dangers) in this room\n"
     message += "'inspect': Inspect scrap that you've already found\n"
     message += "'progress': Progress to the next room\n"
+    message += "'collect': Add scraps to your collection\n"
 
     return message
 
-def collect(events:list[Event]) -> str:
+def collect(**kwargs) -> str:
+    events:list[Event] = kwargs['events']
+    ship:Ship = kwargs['ship']
+    message = "There was nothing to collect..."
+
+    collection = []
     for event in events:
-        if event.isinstance(Scrap):
-            pass
-            
+        if not event.is_hidden() and isinstance(event, Scrap):
+            ship.collect(event)
+            collection.append(f"You collected {event.name} for {event.value}\n")
+
+    if collection:
+        message = "".join(collection)
+
+    return message             
 
 
 OPTIONS = {
     'inspect' : inspect,
     'find' : find,
-    'think' : think
+    'think' : think,
+    'collect': collect
 }
 
 # Stores the style for each action
@@ -112,7 +131,8 @@ styles = {
     "inspect": "sea_green1",
     "find": "light_slate_blue",
     "think": "bold spring_green3 on white",
-    "advise": "grey50"
+    "advise": "grey50",
+    "collect": "light_goldenrod1"
 }
 
 # Stores the interval for slow printing for each action
@@ -121,5 +141,6 @@ wait = {
     "advise": 0.02,
     "find": 0.03,
     "inspect": 0.05,
-    "overview": 0.025
+    "overview": 0.025,
+    "collect": 0.03
 }

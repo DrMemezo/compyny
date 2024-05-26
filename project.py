@@ -4,7 +4,7 @@ import csv
 import random
 from rich.console import Console
 import classes 
-from classes import styles, wait, Ship
+from classes import styles, wait, Ship, OPTIONS
 # Console class from rich, to make text prettier to look at.
 CONSOLE = Console()
 
@@ -63,19 +63,24 @@ def play(ship:Ship):
     while alive:
         # Show progression into the next area
         next_room()
-        events:list = get_events() # Gets a list of events
-        for event in events:
+
+        ship.get_events() # Gets a list of events
+        for event in ship.events:
             # Print event info
             if not event.is_hidden():
                 slow_print(event.__str__(), wait=wait['overview'])
 
         # Prompt user for input
         slow_print("What to do now?", style=styles['info'], wait=wait['advise'])
-        action = input().strip().lower()
+        try:
+            action = input().strip().lower()
+        except KeyboardInterrupt:
+            CONSOLE.print("Quitting")
                 
         while action != "progress":
             try:
-                slow_print(classes.OPTIONS[action](ship=ship, events=events), wait=wait[action], style=styles[action])
+                ship = OPTIONS[action](ship=ship, events=ship.events)
+                slow_print(ship.log, wait=wait[action], style=styles[action])
             except KeyError:
                 CONSOLE.print("psst... it maybe helpful to.. THINK.. about your actions...",
                               style=styles['advise'])
@@ -96,24 +101,6 @@ def next_room():
     
     slow_print(message,wait=0.05, style="bold bright_cyan")
 
-def get_events() -> list:
-    """Returns a list of event objects"""
-    events = []
-    limit = random.randint(1, 3)
-    for _ in range(0, limit):
-        # Basic percentage
-        chance = random.randint(1, 100)
-        if chance < 15: # "rare" has a 15% chance
-            rarity = "rare"
-        elif chance < 45: # "uncommon" has a 45% chance
-            rarity = "uncommon"
-        elif chance < 85: # "common" has a 85% chance
-            rarity = "common"
-        else:
-            continue
-        events.append(classes.Scrap(rarity=rarity))
-    
-    return events
 
 def end(ship:Ship, dead:bool=True):
     style:str = "green" 
@@ -121,7 +108,7 @@ def end(ship:Ship, dead:bool=True):
         style = "bold white on red"
     
     slow_print("GAME OVER", style=styles['default'])
-    slow_print(f"Points: {ship.scraps}", style=styles['default'])
+    slow_print(f"Points: {ship.points}", style=styles['default'])
 
 if __name__ == "__main__":
     main()

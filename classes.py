@@ -56,16 +56,78 @@ class Scrap(Event):
 class Ship:
     def __init__(self, name:str="Johnathan doe") -> None:
         self.health = 3
-        self.scraps = 0
+        self.points = 0
+        self.scraps = {}
         self.name = name
+        self.log:str = ""
+        # A dictionary of percentages of scrap appearing
+        self._RARITIES = {
+            # Each rarity has its own dictionary, for monsters, scraps and default value
+            
+            "rare": {
+                "default": 15,
+                "scrap": 15,
+                "increment": 2, 
+            },
+            "uncommon": {
+                "default": 35,
+                "scrap": 35,
+                "increment": 5
+            },
+            "common": {
+                "default": 50,
+                "scrap": 50,
+                "increment": 10,
+            }
+        }
     
+    def mod_rarity(self, rarity:str, increment_all:bool=True):
+        """Resets a rarity and increases all other rarities IN SCRAPS"""
+        rarity_types = list(self._RARITIES.keys())
+        if rarity not in rarity_types:
+            raise ValueError("unsupported rarity in mod_rarity")
+        self._RARITIES[rarity]["scrap"] = self._RARITIES[rarity]["default"]    
+
+        if increment_all:
+            rarity_types.remove(rarity)
+            for rarities in rarity_types:
+                self._RARITIES[rarities]["scrap"] += self._RARITIES[rarities]["increment"]
+
+    def get_events(self, bound:int=3):
+        """Returns a list of event objects"""
+        self.events = []
+        limit = random.randint(1, bound)
+        for _ in range(0, limit):
+            # Basic percentage
+            chance = random.randint(1, 100)
+            # Determining rarity of scrap object
+            if chance < self._RARITIES["rare"]["scrap"]:
+                rarity = "rare"
+            elif chance < self._RARITIES["uncommon"]["scrap"]:
+                rarity = "uncommon"
+            elif chance < self._RARITIES["common"]["scrap"]:
+                rarity = "common"
+            else:
+                continue # No scrap selected
+            self.mod_rarity(rarity=rarity)
+            self.events.append(Scrap(rarity=rarity))
+        
     def collect(self, scrap:Scrap):
-        self.scraps += scrap.value
+        if not isinstance(scrap, Scrap):
+            raise TypeError("Tried to collect a non-scrap item")
+        
+        self.points += scrap.value
+        # Keep a log of all scraps
+        try:
+            self.scraps[scrap.name] += 1
+        except KeyError:
+            self.scraps[scrap.name] = 1
 
 
 def inspect(**kwargs) -> str:
     message = "There is nothing to inspect"
     events:list[Event] = kwargs['events']
+    ship:Ship = kwargs['ship']
     event_values = []
     for event in events:
         if type(event) is Scrap and not event.is_hidden():
@@ -73,14 +135,17 @@ def inspect(**kwargs) -> str:
     
     if event_values:
         message = "".join(event_values)
-    return message
+    
+    ship.log = message
+    return ship
 
 def find(**kwargs) -> str:
     message = ""
     events:list[Event] = kwargs['events']
+    ship:Ship = kwargs['ship']
     for event in events:
         try:
-            if event.is_hidden():
+            if event.is_hidden() and isinstance(event, Scrap):
                 event.show()
                 message += f"You Found a {event.name}\n"
         except:
@@ -88,7 +153,8 @@ def find(**kwargs) -> str:
     if not message:
         message = "Nothing of value was found..."
 
-    return message
+    ship.log = message
+    return ship
 
 def think(**kwargs) -> str:
     message = "You think long and hard about what to do next...\n"
@@ -97,7 +163,9 @@ def think(**kwargs) -> str:
     message += "'progress': Progress to the next room\n"
     message += "'collect': Add scraps to your collection\n"
 
-    return message
+    ship = kwargs['ship']
+    ship.log = message
+    return ship
 
 def collect(**kwargs) -> str:
     events:list[Event] = kwargs['events']
@@ -113,7 +181,8 @@ def collect(**kwargs) -> str:
     if collection:
         message = "".join(collection)
 
-    return message             
+    ship.log = message
+    return ship             
 
 
 OPTIONS = {

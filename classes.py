@@ -1,6 +1,5 @@
 import random
-
-
+from errors import *
 
 class Event:
     """Event occurs when the player progresses to another room
@@ -9,7 +8,7 @@ class Event:
     def __init__(self, rarity:str) -> None:
         if rarity not in ["common", "uncommon", "rare"]:
             raise ValueError("unsupported rarity")
-        self.hidden:bool = random.choice([True, False])
+        self.rarity = rarity
 
     def is_hidden(self) -> bool:
         return self.hidden
@@ -17,16 +16,16 @@ class Event:
     def show(self):
         self.hidden = False
 
-    def option(self, action:str):
-        """Calls a function based on the action performed by the user"""
-        pass
-
 class Scrap(Event):
     """Scraps are basically an event which occurs when a user walks into a new room
     They have a monetary value based on their rarity type"""
-    def __init__(self,rarity:str) -> None:
+    def __init__(self,rarity:str,id:int) -> None:
         super().__init__(rarity)
+        self.hidden:bool = random.choice([True, False])
+        self.id:int = id
         match rarity: # Get a value for the scrap based on the rarity
+            # TODO: Take the naming and value of scrap seperate from this function
+            
             case 'rare':
                 self.value = random.randint(200,250)
                 self.name = random.choice(["Block O' Gold","Reactor core","True rolex watch"])
@@ -49,16 +48,12 @@ class Scrap(Event):
             f"In the corner of your eye, you spotted a {self.name}"
         ])
     
-    def unique_event():
-        """If any scrap is unique from the rest, they can use this module"""
-        pass
-
 class Ship:
     def __init__(self, name:str="Johnathan doe") -> None:
-        self.health = 3
-        self.points = 0
-        self.scraps = {}
-        self.name = name
+        self.health = 3 
+        self.points = 0 # Points determined by scraps
+        self.current_scrap = None # Current scrap stored before progressing to the next room
+        self.name = name 
         self.log:str = ""
         # A dictionary of percentages of scrap appearing
         self._RARITIES = {
@@ -81,6 +76,7 @@ class Ship:
             }
         }
     
+    #TODO: Make this better
     def mod_rarity(self, rarity:str, increment_all:bool=True):
         """Resets a rarity and increases all other rarities IN SCRAPS"""
         rarity_types = list(self._RARITIES.keys())
@@ -93,35 +89,37 @@ class Ship:
             for rarities in rarity_types:
                 self._RARITIES[rarities]["scrap"] += self._RARITIES[rarities]["increment"]
 
-    def get_events(self, bound:int=3):
+    def get_events(self, bound:int=5):
         """Returns a list of event objects"""
-        self.events = []
-        limit = random.randint(1, bound)
-        for _ in range(0, limit):
+        self.events = {
+            'scrap' : []
+        }
+        limit = random.randint(3, bound)
+        for id in range(0, limit):
             # Basic percentage
             chance = random.randint(1, 100)
             # Determining rarity of scrap object
-            if chance < self._RARITIES["rare"]["scrap"]:
-                rarity = "rare"
-            elif chance < self._RARITIES["uncommon"]["scrap"]:
-                rarity = "uncommon"
-            elif chance < self._RARITIES["common"]["scrap"]:
-                rarity = "common"
-            else:
-                continue # No scrap selected
-            self.mod_rarity(rarity=rarity)
-            self.events.append(Scrap(rarity=rarity))
-        
+            for rarities in ["rare", "uncommon", "common"]:
+                if chance < self._RARITIES[rarities]["scrap"]:
+                    rarity = rarities
+                    break
+            
+            try:
+                self.mod_rarity(rarity=rarity)
+                self.events['scrap'].append(Scrap(rarity=rarity, id=id))
+            except UnboundLocalError: # No scrap selected
+                continue
+
     def collect(self, scrap:Scrap):
         if not isinstance(scrap, Scrap):
             raise TypeError("Tried to collect a non-scrap item")
         
         self.points += scrap.value
-        # Keep a log of all scraps
-        try:
-            self.scraps[scrap.name] += 1
-        except KeyError:
-            self.scraps[scrap.name] = 1
+        
+    def progress(self):
+        """Add scrap the total value, also modify rarities for monsters"""
+        self.collect(self.current_scrap)
+        self.current_scrap = None
 
 
 def inspect(**kwargs) -> str:
@@ -131,7 +129,7 @@ def inspect(**kwargs) -> str:
     event_values = []
     for event in events:
         if type(event) is Scrap and not event.is_hidden():
-            event_values.append(f"{event.name.title()} has a value of {event.value}\n")
+            event_values.append(f"{event.name.title()}, (id: '{event.id}') has a value of {event.value}\n")
     
     if event_values:
         message = "".join(event_values)
@@ -147,7 +145,7 @@ def find(**kwargs) -> str:
         try:
             if event.is_hidden() and isinstance(event, Scrap):
                 event.show()
-                message += f"You Found a {event.name}\n"
+                message += f"You Found a {event.name}, *{event.id}*\n"
         except:
             pass
     if not message:
@@ -161,47 +159,108 @@ def think(**kwargs) -> str:
     message += "'find': Find and locate any hidden items (or dangers) in this room\n"
     message += "'inspect': Inspect scrap that you've already found\n"
     message += "'progress': Progress to the next room\n"
-    message += "'collect': Add scraps to your collection\n"
+    message += "'collect {id}': Add scraps to your collection\n"
+    message += "'overview: Get an overview for your ship\n"
+    message += "'retreat': Call it a day and get outa town\n"
 
     ship = kwargs['ship']
     ship.log = message
     return ship
 
+def find_from_id(scrap_events:list[Scrap], id:int) -> Scrap:
+    for scrap in scrap_events:
+        if scrap.id == id:
+            return scrap
+    return None
+
 def collect(**kwargs) -> str:
     events:list[Event] = kwargs['events']
     ship:Ship = kwargs['ship']
-    message = "There was nothing to collect..."
-
-    collection = []
-    for event in events:
-        if not event.is_hidden() and isinstance(event, Scrap):
-            ship.collect(event)
-            collection.append(f"You collected {event.name} for {event.value}\n")
-
-    if collection:
-        message = "".join(collection)
-
+    message = random.choice(["That is not a valid Id...", 
+                        "No time for mistakes, captain. Look at the id.",
+                        "What are you trying to collect, captain"])     
+    try:
+        collect_id = int(kwargs['subject'])
+    except TypeError:
+        # No ID given
+        message = random.choice(["No scrap was specified...",
+                                "You tried collecting the air. It didnt work.",
+                                "What are you trying to collect, captain?"])
+    except ValueError:
+        # Incorrect Id given
+        pass
+    else:
+    # Trying to find if collect is in events
+        if collect_scrap := find_from_id(events, collect_id): # If id is of a valid scrap
+            try:
+                if ship.current_scrap.id == collect_id: # Already collected
+                    message = "You have already collected this item\t...perhaps it was the wrong id?"
+                else: # Different Id
+                    message = f"Switched out {ship.current_scrap.name}({ship.current_scrap.value}) for {collect_scrap.name}({collect_scrap.value})"
+            except AttributeError: # No scrap currently stored
+                message = f"Collected {collect_scrap.name.title()} for {collect_scrap.value}"
+            finally:
+                ship.current_scrap = collect_scrap
+                
     ship.log = message
     return ship             
 
+def progress(**kwargs):
+    ship:Ship = kwargs['ship']
+    try:
+        ship.progress()
+    except TypeError:
+        pass
+    ship.get_events() # Gets a list of events
+
+    ship.log = random.choice(["Walking through the maze of endless hallways, you find the next room.",
+                             "You feel a cold chill up your spine as you walk into the next room",
+                             "You hear sounds and scrapes in the distance as you walk into the next room",
+                             "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
+    return ship 
+
+def overview(**kwargs):
+    """Gives an overview of the ship at the current moment of function call"""
+    ship:Ship = kwargs['ship']
+    message = "SHIP STATUS---\n"
+    message += f"SHIP HEALTH: {ship.health}\n"
+    message += f"SHIP POINTS: {ship.points}\n"
+    message += f"CURRENT SCRAP: "
+    try:
+        message += f"{ship.current_scrap.name}\n"
+        message += f"\tPOINTS: {ship.current_scrap.value}\n"
+        message += f"\tRARITY: {ship.current_scrap.rarity.title()}"
+    except AttributeError: # No scrap selected
+        message += "UNSELECTED"
+    
+    ship.log = message
+    return ship
+        
+def retreat(**kwargs):
+    raise RetreatFlag
 
 OPTIONS = {
     'inspect' : inspect,
     'find' : find,
     'think' : think,
-    'collect': collect
+    'collect': collect,
+    'progress': progress,
+    'overview': overview,
+    'retreat': retreat
 }
 
 # Stores the style for each action
 styles = {
     "default" : "bold white on blue",
     "danger" : "bold white on red",
-    "info": "turquoise2",
     "inspect": "sea_green1",
     "find": "light_slate_blue",
     "think": "bold spring_green3 on white",
     "advise": "grey50",
-    "collect": "light_goldenrod1"
+    "advise_bold": "bold underline grey50",
+    "collect": "light_goldenrod1",
+    "progress": "bold bright_cyan",
+    "overview": "turquoise2"
 }
 
 # Stores the interval for slow printing for each action
@@ -209,7 +268,8 @@ wait = {
     "think": 0.001,
     "advise": 0.02,
     "find": 0.03,
-    "inspect": 0.05,
+    "inspect": 0.03,
     "overview": 0.025,
-    "collect": 0.03
+    "collect": 0.03,
+    "progress": 0.05
 }

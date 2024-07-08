@@ -2,9 +2,12 @@
 from time import sleep
 import csv
 import random
-from rich.console import Console
-import classes 
+from rich.console import Console 
 from classes import styles, wait, Ship, OPTIONS
+from errors import *
+import re
+
+
 # Console class from rich, to make text prettier to look at.
 CONSOLE = Console()
 
@@ -13,7 +16,7 @@ def main():
     # UNDEVELOPED: titlecard()
     
     # Initialising the ship:
-    # DISABLED: main_ship:Ship = ship_init()
+    # DISABLED: ship_init()
     main_ship:Ship = Ship()
     # Intro to the moon, a spooky description, etc. 
     # DISABLED: print_intro()
@@ -28,13 +31,17 @@ def ship_init() -> Ship:
     slow_print("WHAT IS YOUR NAME,", wait=0.2, style=styles['default'])
     slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
     name = input().strip()
-    return Ship(name=name)
+    ship = Ship(name=name)
+    ship.get_events()
+    
+    return ship
     
 
 def print_intro():
     intro:dict = get_intro()
     slow_print(f"{intro['moon'].upper()}",style=styles["default"], wait=0.2)
     slow_print(f"\n\t{intro['description']}", wait=0.02)
+    # TODO: Add a prompt to show entry into the bunker
 
 
 def get_intro() -> dict:
@@ -61,46 +68,98 @@ def play(ship:Ship):
     global CONSOLE
     alive:bool = True 
     while alive:
-        # Show progression into the next area
-        next_room()
-
-        ship.get_events() # Gets a list of events
-        for event in ship.events:
-            # Print event info
-            if not event.is_hidden():
-                slow_print(event.__str__(), wait=wait['overview'])
-
-        # Prompt user for input
-        slow_print("What to do now?", style=styles['info'], wait=wait['advise'])
+        # TODO: Remove the below line after adding ship_init()
+        ship.get_events()
         try:
-            action = input().strip().lower()
-        except KeyboardInterrupt:
-            CONSOLE.print("Quitting")
-                
-        while action != "progress":
+            for event in ship.events['scrap']:
+                if not event.is_hidden(): # Print event info
+                    slow_print(event.__str__(), wait=wait['overview'])
+        except KeyError: # No scraps in the current room
+                pass
+        
+        # Prompt user for input
+        slow_print("What to do now?", style=styles['overview'], wait=wait['advise'])
+
+
+        while True:             
+            action, subject = get_action()
+        
             try:
-                ship = OPTIONS[action](ship=ship, events=ship.events)
+                ship = OPTIONS[action](ship=ship, events=ship.events['scrap'], subject=subject)
                 slow_print(ship.log, wait=wait[action], style=styles[action])
             except KeyError:
-                CONSOLE.print("psst... it maybe helpful to.. THINK.. about your actions...",
-                              style=styles['advise'])
-            finally:
-                action = input().strip().lower()
-
+                print_think()
+            except RetreatFlag:
+                alive = False 
+                break
+            # When player progresses
+            if action == "progress":
+                break
         # See if user lives or dies
-        alive = random.choice([True, False])
+        
     
     return ship
 
-def next_room():
-    global CONSOLE
+
+def print_think():
+    random.seed()
+    message = random.choice(["Think, captian. Think!",
+                                "Might be helpful to THINK that over",
+                                "Think carefully about what you need to do..."])
+
+    pattern = r"think(?:[?!.])?"
+
+    advice = re.split(pattern, message, flags=re.IGNORECASE)
+    advice = iter(advice)
+    find_res = re.findall(pattern, message, flags=re.IGNORECASE)
+    find_res = iter(find_res) # To convert list into an iterator
+
+
+    while True:
+        try:
+            slow_print(next(advice), style=styles['advise'], wait=wait['advise'], end='')
+            slow_print(next(find_res), style=styles['advise_bold'], wait=wait['advise'], end='')
+        except StopIteration:
+            break
+    print()
+
+
+def get_action() -> str:
+    """Returns an action(i.e collect, find) and the object to perform it on"""
+    while True:    
+        action = re.sub(r" +", " ", input().strip().lower()) # Removing any double spaces to one 
+        try:
+            return validate_action(action)
+        except ValueError:
+            print_think()
+            continue
+
+    
+
+def validate_action(action):
+    subject:None|str = None
+
+    if match := re.findall(r" ", action):
+        if len(match) >= 3:
+            raise ValueError("More than three args given")
+
+    if match := re.match(r"^(\w+) (\w+)$", action):
+        action = match.group(1)
+        subject = match.group(2)
+    
+    return action, subject
+
+def progress(ship:Ship) -> Ship:
+    
+    
     message = random.choice(["Walking through the maze of endless hallways, you find the next room.",
                              "You feel a cold chill up your spine as you walk into the next room",
                              "You hear sounds and scrapes in the distance as you walk into the next room",
                              "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
     
     slow_print(message,wait=0.05, style="bold bright_cyan")
-
+    
+    return ship
 
 def end(ship:Ship, dead:bool=True):
     style:str = "green" 

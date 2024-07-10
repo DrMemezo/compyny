@@ -3,10 +3,10 @@ from time import sleep
 import csv
 import random
 from rich.console import Console 
-from classes import styles, wait, Ship, OPTIONS
-from errors import *
+from classes import Ship
+from errors import RetreatFlag
 import re
-
+from options import styles, wait, OPTIONS
 
 # Console class from rich, to make text prettier to look at.
 CONSOLE = Console()

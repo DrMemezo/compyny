@@ -50,9 +50,12 @@ def think(**kwargs) -> str:
 
 def find_from_id(scrap_events:list[Scrap], id:int) -> Scrap:
     for scrap in scrap_events:
-        if scrap.id == id:
+        if not scrap.is_hidden(): # Cannot collect hidden scraps
+            continue
+
+        if scrap.id == id: # Matching Ids
             return scrap
-    return None
+    return None 
 
 def collect(**kwargs) -> str:
     events:list[Event] = kwargs['events']

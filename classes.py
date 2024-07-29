@@ -48,24 +48,6 @@ class Scrap(Event):
             f"In the corner of your eye, you spotted a {self.name}"
         ])
     
-class Monster(Event):
-    """A Monster is an event which occurs and can damage the player."""
-    def __init__(self, rarity:str, damage:int, is_aggresive:bool=False) -> None:
-        super().__init__(rarity)
-        self.damage = damage
-        self.aggresive = is_aggresive
-
-    def attack(self):
-        """Try to attack the player"""
-        pass
-
-    def approach(self):
-        """Approaching the player"""
-        pass
-
-    def aggrevate(self):
-        """Become aggressive if the player has done something"""
-        self.aggresive = True
 
 class Ship:
     def __init__(self, name:str="Johnathan doe") -> None:
@@ -74,6 +56,7 @@ class Ship:
         self.current_scrap = None # Current scrap stored before progressing to the next room
         self.name = name 
         self.log:str = ""
+        self.damage = 3
         # A dictionary of percentages of scrap appearing
         self._RARITIES = {
             # Each rarity has its own dictionary, for monsters, scraps and default value
@@ -94,25 +77,27 @@ class Ship:
                 "increment": 10,
             }
         }
+
+        self.events = {
+            'scrap' : [],
+            'monster': None 
+        }
     
-    #TODO: Make this better
     def mod_rarity(self, rarity:str, increment_all:bool=True):
         """Resets a rarity and increases all other rarities IN SCRAPS"""
         rarity_types = list(self._RARITIES.keys())
         if rarity not in rarity_types:
             raise ValueError("unsupported rarity in mod_rarity")
         self._RARITIES[rarity]["scrap"] = self._RARITIES[rarity]["default"]    
-
+         
         if increment_all:
             rarity_types.remove(rarity)
             for rarities in rarity_types:
                 self._RARITIES[rarities]["scrap"] += self._RARITIES[rarities]["increment"]
 
-    def get_events(self, bound:int=5):
+    def get_scraps(self, bound:int=5):
         """Returns a list of event objects"""
-        self.events = {
-            'scrap' : []
-        }
+        self.events['scrap'] = []
         limit = random.randint(3, bound)
         for id in range(0, limit):
             # Basic percentage
@@ -128,6 +113,7 @@ class Ship:
                 self.events['scrap'].append(Scrap(rarity=rarity, id=id))
             except UnboundLocalError: # No scrap selected
                 continue
+
 
     def collect(self, scrap:Scrap):
         if not isinstance(scrap, Scrap):

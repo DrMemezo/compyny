@@ -1,12 +1,13 @@
 # LETHAL (PROTO) COM-PY-NY
 from time import sleep
+from monsters import get_monster, M_OPTIONS,  styles, wait
 import csv
 import random
 from rich.console import Console 
 from classes import Ship
-from errors import RetreatFlag
+from errors import *
 import re
-from options import styles, wait, OPTIONS
+from options import OPTIONS
 
 # Console class from rich, to make text prettier to look at.
 CONSOLE = Console()
@@ -32,7 +33,7 @@ def ship_init() -> Ship:
     slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
     name = input().strip()
     ship = Ship(name=name)
-    ship.get_events()
+    ship = get_events(ship)
     
     return ship
     
@@ -69,7 +70,8 @@ def play(ship:Ship):
     alive:bool = True 
     while alive:
         # TODO: Remove the below line after adding ship_init()
-        ship.get_events()
+        ship = get_events(ship)
+        
         try:
             for event in ship.events['scrap']:
                 if not event.is_hidden(): # Print event info
@@ -77,21 +79,55 @@ def play(ship:Ship):
         except KeyError: # No scraps in the current room
                 pass
         
+        try: # Monster approach
+            ship = ship.events['monster'].approach(ship)
+            slow_print(ship.log, wait=0.1, style="deep_pink4")
+        except AttributeError: # No monster 
+            pass
         # Prompt user for input
         slow_print("What to do now?", style=styles['overview'], wait=wait['advise'])
 
 
         while True:             
+            think_count = 0
+            
+            # Get action 
             action, subject = get_action()
-        
+            
+            # SCRAP OPTIONS
+
             try:
-                ship = OPTIONS[action](ship=ship, events=ship.events['scrap'], subject=subject)
-                slow_print(ship.log, wait=wait[action], style=styles[action])
+                ship = OPTIONS[action](ship=ship, events=ship.events['scrap'], subject=subject) # gt action on all scraps
+                slow_print(ship.log, wait=wait[action], style=styles[action]) # Print out result (If any)
             except KeyError:
-                print_think()
+                think_count += 1
             except RetreatFlag:
+                show_retreat(ship)
                 alive = False 
                 break
+            
+            # MONSTER OPTIONS
+
+            try:
+                ship = M_OPTIONS[action](ship=ship) # Result of action on the monster
+                slow_print(ship.log, wait=wait[action], style=styles[action]) # Print out result
+            except KeyError:
+                think_count += 1
+            
+            # Monster attacks
+            try:
+                ship = ship.events['monster'].attack(ship, action=action)
+                slow_print(ship.log, wait=0.1, style="orange_red1")
+            except AttributeError: # No Monster selected
+                pass
+            except KeyError:
+                think_count += 1
+
+            # Think Message
+            if think_count == 2:
+                print_think()
+
+
             # When player progresses
             if action == "progress":
                 break
@@ -99,6 +135,27 @@ def play(ship:Ship):
         
     
     return ship
+
+def get_events(ship):
+    ship.get_scraps() # Get scrap events
+    try:
+        ship.events["monster"] = get_monster()
+    except NoMonsterFlag:
+        ship.events["monster"] = None
+    return ship
+
+def show_retreat(ship:Ship):
+    
+    message = random.choice(["Another day, Another salvage.",
+                             "Same time tomorrow. 9' o clock.",
+                             "You run and run, but the horrors will always be there with you."])
+    slow_print(message, style="red3 bold")
+    try:
+        message = f"While retreating, you left {ship.current_scrap.name.title()}, worth {ship.current_scrap.value} points"
+    except AttributeError:
+        pass
+    else:
+        slow_print(message, style="red on light_cyan1", wait=0.05)
 
 
 def print_think():

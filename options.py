@@ -37,7 +37,7 @@ def find(**kwargs) -> str:
 
 def think(**kwargs) -> str:
     message = "You think long and hard about what to do next...\n"
-    message += "'find': Find and locate any hidden items (or dangers) in this room\n"
+    message += "'find': Find and locate any hidden items in this room\n"
     message += "'inspect': Inspect scrap that you've already found\n"
     message += "'progress': Progress to the next room\n"
     message += "'collect {id}': Add scraps to your collection\n"
@@ -50,7 +50,7 @@ def think(**kwargs) -> str:
 
 def find_from_id(scrap_events:list[Scrap], id:int) -> Scrap:
     for scrap in scrap_events:
-        if not scrap.is_hidden(): # Cannot collect hidden scraps
+        if scrap.is_hidden(): # Cannot collect hidden scraps
             continue
 
         if scrap.id == id: # Matching Ids
@@ -95,7 +95,7 @@ def progress(**kwargs):
         ship.progress()
     except TypeError:
         pass
-    ship.get_events() # Gets a list of events
+    ship.get_scraps() # Gets a list of events
 
     ship.log = random.choice(["Walking through the maze of endless hallways, you find the next room.",
                              "You feel a cold chill up your spine as you walk into the next room",

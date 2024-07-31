@@ -1,5 +1,5 @@
 from classes import Event, Ship, Scrap
-from errors import NoMonsterFlag
+from errors import NoMonsterFlag, RunFlag
 from options import styles, wait
 import random
 
@@ -17,6 +17,7 @@ class Monster(Event):
 
     def attack(self, ship:Ship, action:str):
         """Try to attack the player"""
+        ship.log = "\n"
         if self.health > 0:
             ship.log = f"A monster attacks!"
         return ship
@@ -105,15 +106,30 @@ def think(**kwargs):
 def run(**kwargs):
     ship = kwargs['ship']
     monster = ship.events['monster'] 
-    # Check if run is valid:
 
     # Raise Run flag
+    raise RunFlag
+
+def progress(**kwargs):
+    ship:Ship = kwargs['ship']
+    try:
+        ship.progress()
+    except TypeError:
+        pass
+    ship.get_scraps() # Gets a list of events
+
+    ship.log = random.choice(["Walking through the maze of endless hallways, you find the next room.",
+                             "You feel a cold chill up your spine as you walk into the next room",
+                             "You hear sounds and scrapes in the distance as you walk into the next room",
+                             "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
+    return ship 
 
 M_OPTIONS = {
     'attack': attack,
     'alert': alert,
     'think': think,
-    'run': run
+    'run': run,
+    'progress': progress
 }
 
 styles.update({

@@ -113,6 +113,12 @@ def play(ship:Ship):
                 slow_print(ship.log, wait=wait[action], style=styles[action]) # Print out result
             except KeyError:
                 think_count += 1
+            except RunFlag:
+                show_run(ship=ship)
+                break
+            except KilledFlag:
+                alive = False
+                break
             
             # Monster attacks
             try:
@@ -136,6 +142,14 @@ def play(ship:Ship):
     
     return ship
 
+def show_run(ship) -> None:
+    slow_print("You ran!", wait=0.1, style="bold orange3")
+    try:
+        message = f"While running, you left {ship.current_scrap.name.title()}, worth {ship.current_scrap.value} points"
+    except AttributeError:
+        return 
+    slow_print(message, style="red on light_cyan1", wait=0.05)
+
 def get_events(ship):
     ship.get_scraps() # Get scrap events
     try:
@@ -153,9 +167,9 @@ def show_retreat(ship:Ship):
     try:
         message = f"While retreating, you left {ship.current_scrap.name.title()}, worth {ship.current_scrap.value} points"
     except AttributeError:
-        pass
-    else:
-        slow_print(message, style="red on light_cyan1", wait=0.05)
+        return
+    
+    slow_print(message, style="red on light_cyan1", wait=0.05)
 
 
 def print_think():

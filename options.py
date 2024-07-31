@@ -89,19 +89,6 @@ def collect(**kwargs) -> str:
     ship.log = message
     return ship             
 
-def progress(**kwargs):
-    ship:Ship = kwargs['ship']
-    try:
-        ship.progress()
-    except TypeError:
-        pass
-    ship.get_scraps() # Gets a list of events
-
-    ship.log = random.choice(["Walking through the maze of endless hallways, you find the next room.",
-                             "You feel a cold chill up your spine as you walk into the next room",
-                             "You hear sounds and scrapes in the distance as you walk into the next room",
-                             "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
-    return ship 
 
 def overview(**kwargs):
     """Gives an overview of the ship at the current moment of function call"""
@@ -128,7 +115,6 @@ OPTIONS = {
     'find' : find,
     'think' : think,
     'collect': collect,
-    'progress': progress,
     'overview': overview,
     'retreat': retreat
 }

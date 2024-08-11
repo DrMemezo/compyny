@@ -1,7 +1,7 @@
 from classes import Event, Ship, Scrap
 import random 
 from errors import RetreatFlag
-
+import sys
 
 def inspect(**kwargs) -> str:
     message = "There is nothing to inspect"
@@ -110,7 +110,12 @@ def overview(**kwargs):
 def retreat(**kwargs):
     raise RetreatFlag
 
+def exit(**kwargs):
+    sys.exit(0)
+
+# Options for the player
 OPTIONS = {
+    'exit': exit,
     'inspect' : inspect,
     'find' : find,
     'think' : think,

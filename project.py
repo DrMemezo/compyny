@@ -1,11 +1,12 @@
 # LETHAL (PROTO) COM-PY-NY
 from time import sleep
-from monsters import get_monster, M_OPTIONS,  styles, wait
+from monsters import Monster, get_monster, M_OPTIONS,  styles, wait
 import csv
 import random
 from rich.console import Console 
 from classes import Ship
 from errors import *
+import sys
 import re
 from options import OPTIONS
 
@@ -57,6 +58,10 @@ def get_intro() -> dict:
 def slow_print(message:str, wait:float=0.1,
                 style:str="white", end:str="\n"):
     """NOTE: Only pass strings!!"""
+    
+    if message == "": # Does not print whitespaces
+        return
+    
     global CONSOLE
 
     for char in message:
@@ -81,7 +86,7 @@ def play(ship:Ship):
         
         try: # Monster approach
             ship = ship.events['monster'].approach(ship)
-            slow_print(ship.log, wait=0.1, style="deep_pink4")
+            slow_print(ship.log, wait=0.05, style="deep_pink4")
         except AttributeError: # No monster 
             pass
         # Prompt user for input
@@ -102,9 +107,11 @@ def play(ship:Ship):
             except KeyError:
                 think_count += 1
             except RetreatFlag:
-                show_retreat(ship)
-                alive = False 
-                break
+                ship.exit_flag = RetreatFlag
+                return ship
+            
+            # Reset log so that it dosen't repeat
+            ship.log = ""               
             
             # MONSTER OPTIONS
 
@@ -117,8 +124,11 @@ def play(ship:Ship):
                 show_run(ship=ship)
                 break
             except KilledFlag:
+                #show_killed(ship=ship)
                 alive = False
                 break
+            
+            ship.log = ""
             
             # Monster attacks
             try:
@@ -126,6 +136,9 @@ def play(ship:Ship):
                 slow_print(ship.log, wait=0.1, style="orange_red1")
             except AttributeError: # No Monster selected
                 pass
+            except KilledFlag:
+                ship.exit_flag = KilledFlag
+                return ship
             except KeyError:
                 think_count += 1
 
@@ -137,8 +150,6 @@ def play(ship:Ship):
             # When player progresses
             if action == "progress":
                 break
-        # See if user lives or dies
-        
     
     return ship
 
@@ -194,7 +205,6 @@ def print_think():
             break
     print()
 
-
 def get_action() -> str:
     """Returns an action(i.e collect, find) and the object to perform it on"""
     while True:    
@@ -204,8 +214,6 @@ def get_action() -> str:
         except ValueError:
             print_think()
             continue
-
-    
 
 def validate_action(action):
     subject:None|str = None
@@ -220,21 +228,18 @@ def validate_action(action):
     
     return action, subject
 
-def progress(ship:Ship) -> Ship:
-    
-    
-    message = random.choice(["Walking through the maze of endless hallways, you find the next room.",
-                             "You feel a cold chill up your spine as you walk into the next room",
-                             "You hear sounds and scrapes in the distance as you walk into the next room",
-                             "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
-    
-    slow_print(message,wait=0.05, style="bold bright_cyan")
-    
-    return ship
+def end(ship:Ship):
+    """End State for the game"""
 
-def end(ship:Ship, dead:bool=True):
+    if ship.exit_flag == RetreatFlag:
+        show_retreat(ship)
+    else:
+        monster:Monster = ship.events['monster']
+        message = monster.get_message(ship.exit_flag)
+        slow_print(message=message) #TODO: make this aesthetic
+
     style:str = "green" 
-    if dead:
+    if ship.is_dead():
         style = "bold white on red"
     
     slow_print("GAME OVER", style=styles['default'])

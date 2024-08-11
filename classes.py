@@ -47,16 +47,16 @@ class Scrap(Event):
             f"You stumbled over a {self.name}, How clumsy!",
             f"In the corner of your eye, you spotted a {self.name}"
         ])
-    
 
 class Ship:
-    def __init__(self, name:str="Johnathan doe") -> None:
-        self.health = 3 
+    def __init__(self, name:str="Johnathan doe",health:int=10) -> None:
+        self.health = health 
         self.points = 0 # Points determined by scraps
         self.current_scrap = None # Current scrap stored before progressing to the next room
         self.name = name 
         self.log:str = ""
         self.damage = 3
+        self.exit_flag = RetreatFlag # Flag type
         # A dictionary of percentages of scrap appearing
         self._RARITIES = {
             # Each rarity has its own dictionary, for monsters, scraps and default value
@@ -125,4 +125,7 @@ class Ship:
         """Add scrap the total value, also modify rarities for monsters"""
         self.collect(self.current_scrap)
         self.current_scrap = None
+    
+    def is_dead(self):
+        return self.health <= 0 
 

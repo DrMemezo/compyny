@@ -1,16 +1,7 @@
 # LETHAL (PROTO) COM-PY-NY
-from time import sleep
-from monsters import Monster, get_monster, M_OPTIONS,  styles, wait
-import csv
-import random
-from rich.console import Console 
-from classes import Ship
-from errors import *
-import sys
-import re
-from options import OPTIONS
-
 # Console class from rich, to make text prettier to look at.
+from dependencies import *
+
 CONSOLE = Console()
 
 def main():
@@ -85,7 +76,7 @@ def play(ship:Ship):
                 pass
         
         try: # Monster approach
-            ship = ship.events['monster'].approach(ship)
+            ship.log = ship.events['monster'].approach()
             slow_print(ship.log, wait=0.05, style="deep_pink4")
         except AttributeError: # No monster 
             pass
@@ -123,21 +114,23 @@ def play(ship:Ship):
             except RunFlag:
                 show_run(ship=ship)
                 break
-            except KilledFlag:
-                #show_killed(ship=ship)
-                alive = False
-                break
+            except ProgressFailFlag:
+                ship.exit_flag = ProgressFailFlag
+                return ship
             
             ship.log = ""
             
             # Monster attacks
             try:
-                ship = ship.events['monster'].attack(ship, action=action)
-                slow_print(ship.log, wait=0.1, style="orange_red1")
+                ship = ship.events['monster'].attack(ship, is_progressing=False)
+                slow_print(ship.log, wait=0.05, style="orange_red1")
             except AttributeError: # No Monster selected
                 pass
             except KilledFlag:
                 ship.exit_flag = KilledFlag
+                return ship
+            except CustomKilledFlag:
+                ship.exit_flag = CustomKilledFlag
                 return ship
             except KeyError:
                 think_count += 1

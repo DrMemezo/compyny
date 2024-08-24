@@ -3,6 +3,9 @@
 from dependencies import *
 
 CONSOLE = Console()
+PATHS = {
+    'moons': 'assets/moons.csv'
+}
 
 def main():
     # Game's title card
@@ -12,7 +15,7 @@ def main():
     # DISABLED: ship_init()
     main_ship:Ship = Ship()
     # Intro to the moon, a spooky description, etc. 
-    # DISABLED: print_intro()
+    #DISABLED: print_intro()
     # Play state
     main_ship = play(main_ship)
     # End state
@@ -40,7 +43,12 @@ def print_intro():
 def get_intro() -> dict:
     """Gets a dictionary defined as {'moon': <moon>, 'description':<desc>}
     from moons.csv"""
-    with open("moons.csv") as file:
+    path = Path(PATHS["moons"]) # Path for Path in the path for path
+    
+    if not path.exists():
+        raise FileNotFoundError
+    
+    with open(path) as file:
         moons:list = list(csv.DictReader(file,delimiter='|', skipinitialspace=True))
     
     return random.choice(moons)

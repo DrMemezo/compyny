@@ -8,12 +8,18 @@ PATHS = {
     "rare": Path("assets/scraps/rare.csv"),
     "uncommon": Path("assets/scraps/uncommon.csv"),
     "common": Path("assets/scraps/common.csv"),
-    "weapons": Path("assets/scraps/weapons.csv")
+    "weapon": Path("assets/scraps/weapons.csv")
 }
 
 for path in PATHS.values():
     if not path.exists():
         raise FileNotFoundError
+
+def get_scrap_from(rarity):
+        """Gets the name, description (and damage from weapons)
+        for scraps"""
+        csv.rea
+
 
 class Event:
     """Event occurs when the player progresses to another room
@@ -35,9 +41,11 @@ class Scrap(Event):
     """Scraps are basically an event which occurs when a user walks into a new room
     They have a monetary value based on their rarity type"""
     def __init__(self,rarity:str,id:int,name:str="Scrap",
+                 description:str="Generic Scrap",
                  value:int=50) -> None:
         super().__init__(rarity)
-        self.id:int = id
+        self.id = id
+        self.description = description
         self.name = name
         self.value = value
             
@@ -60,22 +68,31 @@ class Ship:
         self.name = name 
         self.log:str = ""
         self.damage = 3
+        self.chances:dict[int] = {
+            "crit": 20,
+            "hit": 70,
+            "miss": 10
+        }
         self.exit_flag = RetreatFlag # Flag type
-        # A dictionary of percentages of scrap appearing
+        self.insanity:int = 0 # The more insane the player gets, the rarer the monsters 
 
         self.events = {
             'scrap' : [],
             'monster': None 
         }
     
-    def get_scraps(self, bound:int=5):
+    def get_scraps(self):
         """Returns a list of event objects"""
         self.events['scrap'] = []
-        limit = random.randint(3, bound)
+        limit = random.randint(3, 5)
         for id in range(0, limit):
             # Basic percentage
             result:str = roll(common=50, uncommon=25, rare=5, nothing=20)
             
+            match result:
+                case "nothing":
+                    continue
+
             try:
                 self.events['scrap'].append(Scrap(rarity=result, id=id))
             except TypeError: # No scrap selected

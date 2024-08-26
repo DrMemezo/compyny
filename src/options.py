@@ -93,16 +93,21 @@ def collect(**kwargs) -> str:
 def overview(**kwargs):
     """Gives an overview of the ship at the current moment of function call"""
     ship:Ship = kwargs['ship']
+    crt_scrap:Scrap|None = ship.current_scrap
+    
+
     message = "SHIP STATUS---\n"
     message += f"SHIP HEALTH: {ship.health}\n"
     message += f"SHIP POINTS: {ship.points}\n"
     message += f"CURRENT SCRAP: "
-    try:
-        message += f"{ship.current_scrap.name}\n"
-        message += f"\tPOINTS: {ship.current_scrap.value}\n"
-        message += f"\tRARITY: {ship.current_scrap.rarity.title()}"
-    except AttributeError: # No scrap selected
+
+    if crt_scrap is None:
         message += "UNSELECTED"
+    else:
+        message += f"{crt_scrap.name} -- {crt_scrap.description}\n"
+        message += f"\tPOINTS: {crt_scrap.value}\n"
+        message += f"\tRARITY: {crt_scrap.rarity.title()}"
+
     
     ship.log = message
     return ship

@@ -1,16 +1,15 @@
-from src.classes import Event, Ship, Scrap
+from src.classes import Event, Ship, Scrap, Weapon
 import random 
 from src.errors import RetreatFlag
 import sys
 
-def inspect(**kwargs) -> str:
+def inspect(**kwargs) -> Ship:
     message = "There is nothing to inspect"
     events:list[Event] = kwargs['events']
     ship:Ship = kwargs['ship']
     event_values = []
     for event in events:
-        if type(event) is Scrap and not event.is_hidden():
-            event_values.append(f"{event.name.title()}, (id: '{event.id}') has a value of {event.value}\n")
+        event_values.append(f"{event.name.title()}, (id: '{event.id}') has a value of {event.value}\n")
     
     if event_values:
         message = "".join(event_values)
@@ -18,7 +17,7 @@ def inspect(**kwargs) -> str:
     ship.log = message
     return ship
 
-def find(**kwargs) -> str:
+def find(**kwargs) -> Ship:
     message = ""
     events:list[Event] = kwargs['events']
     ship:Ship = kwargs['ship']
@@ -35,7 +34,7 @@ def find(**kwargs) -> str:
     ship.log = message
     return ship
 
-def think(**kwargs) -> str:
+def think(**kwargs) -> Ship:
     message = "You think long and hard about what to do next...\n"
     message += "'find': Find and locate any hidden items in this room\n"
     message += "'inspect': Inspect scrap that you've already found\n"
@@ -43,6 +42,8 @@ def think(**kwargs) -> str:
     message += "'collect {id}': Add scraps to your collection\n"
     message += "'overview: Get an overview for your ship\n"
     message += "'retreat': Call it a day and get outa town\n"
+    message += "'equip': Equips a Weapon that you're currently carrying\n"
+    message += "\tYou can check this by using 'overview'\n"
 
     ship = kwargs['ship']
     ship.log = message
@@ -57,7 +58,7 @@ def find_from_id(scrap_events:list[Scrap], id:int) -> Scrap:
             return scrap
     return None 
 
-def collect(**kwargs) -> str:
+def collect(**kwargs) -> Ship:
     events:list[Event] = kwargs['events']
     ship:Ship = kwargs['ship']
     message = random.choice(["That is not a valid Id...", 
@@ -89,16 +90,50 @@ def collect(**kwargs) -> str:
     ship.log = message
     return ship             
 
+def equip(**kwargs) -> Ship:
+    """Equips a weapon that the ship has currently collected"""
+    ship:Ship = kwargs['ship']
+    
+    if ship.current_scrap is None:
+        ship.log = random.choice(["You equiped the air!...wait",
+                                  "You haven't collected anything",
+                                  "You need to collect a weapon before equipping it"])
+        return ship
+    
+    if not type(ship.current_scrap) == Weapon:
+        ship.log = random.choice(["What you have equipped isn't a weapon, captain...",
+                                  "...Yeah I don't think thats gonna work out well for you.",
+                                  "Only a weapon may be equipped, captain"])
+
+        return ship
+     
+    if ship.current_weapon:
+        ship.log = f"Switched out {ship.current_weapon.name.title()} for {ship.current_scrap.name.title()}"
+        ship.current_weapon, ship.current_scrap = ship.current_scrap, ship.current_weapon # Swaps both
+    else:
+        ship.current_weapon = ship.current_scrap
+        ship.log = f"Equipped {ship.current_scrap.name.title()}"
+
+    return ship
 
 def overview(**kwargs):
     """Gives an overview of the ship at the current moment of function call"""
     ship:Ship = kwargs['ship']
     crt_scrap:Scrap|None = ship.current_scrap
+    crt_weapon:Weapon|None = ship.current_weapon
     
 
     message = "SHIP STATUS---\n"
     message += f"SHIP HEALTH: {ship.health}\n"
     message += f"SHIP POINTS: {ship.points}\n"
+    # WEAPON    
+    message += "CURRENT WEAPON: "
+    if crt_weapon is None:
+        message += "UNEQUIPED"
+    else:
+        message += f"{crt_weapon.name} -- {crt_weapon.description}\n"
+        message += f"\tDAMAGE: {crt_weapon.damage}\n"   
+    # SCRAP
     message += f"CURRENT SCRAP: "
 
     if crt_scrap is None:
@@ -126,7 +161,8 @@ OPTIONS = {
     'think' : think,
     'collect': collect,
     'overview': overview,
-    'retreat': retreat
+    'retreat': retreat,
+    'equip': equip
 }
 
 # Stores the style for each action
@@ -140,7 +176,8 @@ styles = {
     "advise_bold": "bold underline grey50",
     "collect": "light_goldenrod1",
     "progress": "bold bright_cyan",
-    "overview": "turquoise2"
+    "overview": "turquoise2",
+    "equip": "light_yellow3"
 }
 
 # Stores the interval for slow printing for each action
@@ -151,5 +188,6 @@ wait = {
     "inspect": 0.03,
     "overview": 0.025,
     "collect": 0.03,
-    "progress": 0.05
+    "progress": 0.05,
+    "equip": 0.05
 }

@@ -22,3 +22,7 @@ class ProgressFailFlag(BaseException): # Dies via progress fail
 class CustomKilledFlag(BaseException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+class CannotReachFlag(BaseException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

@@ -12,8 +12,7 @@ def main():
     # UNDEVELOPED: titlecard()
     
     # Initialising the ship:
-    # DISABLED: ship_init()
-    main_ship:Ship = Ship()
+    main_ship:Ship = ship_init()
     # Intro to the moon, a spooky description, etc. 
     #DISABLED: print_intro()
     # Play state
@@ -24,10 +23,10 @@ def main():
 def ship_init() -> Ship:
     
     
-    slow_print("WHAT IS YOUR NAME,", wait=0.2, style=styles['default'])
-    slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
-    name = input().strip()
-    ship = Ship(name=name)
+    # slow_print("WHAT IS YOUR NAME,", wait=0.2, style=styles['default'])
+    # slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
+    # name = input().strip()
+    ship = Ship()
     ship = get_events(ship)
     
     return ship
@@ -73,8 +72,6 @@ def play(ship:Ship):
     global CONSOLE
     alive:bool = True 
     while alive:
-        # TODO: Remove the below line after adding ship_init()
-        ship = get_events(ship)
         
         try:
             for event in ship.events['scrap']:
@@ -120,7 +117,7 @@ def play(ship:Ship):
             except KeyError:
                 think_count += 1
             except RunFlag:
-                show_run(ship=ship)
+                ship = show_run(ship=ship)
                 break
             except ProgressFailFlag:
                 ship.exit_flag = ProgressFailFlag
@@ -154,13 +151,23 @@ def play(ship:Ship):
     
     return ship
 
-def show_run(ship) -> None:
+def show_run(ship:Ship) -> None:
     slow_print("You ran!", wait=0.1, style="bold orange3")
     try:
         message = f"While running, you left {ship.current_scrap.name.title()}, worth {ship.current_scrap.value} points"
     except AttributeError:
-        return 
-    slow_print(message, style="red on light_cyan1", wait=0.05)
+        pass 
+    else:
+        ship.current_scrap = None
+        slow_print(message, style="red on light_cyan1", wait=0.05)
+    
+    try:
+        ship.log = ship.events['monster'].run_response()
+    except AttributeError: # Monster is not persistant
+        ship.events['monster'] = None 
+    else:
+        slow_print(ship.log, wait=wait['attack'], style=styles['attack'])
+    return ship
 
 def get_events(ship):
     ship.get_scraps() # Get scrap events

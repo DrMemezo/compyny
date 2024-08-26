@@ -1,14 +1,20 @@
-from src.classes import Event, Ship, Scrap
-import src.errors as er
-from src.options import styles, wait
-import random
-from src.roll import roll
+try:
+    from classes import Event, Ship, Weapon
+    import errors as er
+    from options import styles, wait
+    from roll import roll
+except ModuleNotFoundError:
+    from src.classes import Event, Ship, Weapon
+    import src.errors as er
+    from src.options import styles, wait
+    from src.roll import roll
 
+import random
 
 
 class Monster(Event):
     """A Monster is an event which occurs and can damage the player."""
-    def __init__(self, rarity:str,name="Monster",description="The Monster Template",
+    def __init__(self, rarity:str="common",name="Monster",description="The Monster Template",
                 damage:int=7, health:int=10,
                 is_aggresive=False, is_hidden=False,
                 is_persistant=False) -> None:
@@ -55,6 +61,12 @@ class Monster(Event):
     def is_dead(self):
         return self.health <= 0
     
+    def attack_response(self) -> str:
+
+        msg += self.aggrevate()
+        msg += "\n"
+        return msg
+
     def approach(self, msgs:list[str]=["A monster aprroaches!"]) -> str: 
         """Shows a message when approaching the player"""
         if self.hidden:
@@ -84,11 +96,16 @@ class Monster(Event):
         except:
             raise ValueError("Unsupported flag entered...")
 
+    def progress_response(self, ship:Ship) -> Ship:
+        ship = self.attack(ship, crit=100, hit=0, miss=0, is_progressing=True)
+        ship.events['monster'] = self if self.persistant else None
+        return ship
+
     def __str__(self) -> str:
         return f"{self.name.title()}"
     
 class Lootbugs(Monster):
-    def __init__(self, rarity: str, name="Lootbugs", description="A horde of happy horders",
+    def __init__(self, rarity:str="common", name="Lootbugs", description="A horde of happy horders",
                 damage: int = 2, health: int = 5, is_aggresive=False, is_hidden=False) -> None:
         super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden)
 
@@ -117,7 +134,7 @@ class Lootbugs(Monster):
 
 class Bracken(Monster):
 
-    def __init__(self, rarity: str, name="Bracken", description="A leavy maroon marauder", damage: int = 7, health: int = 6,
+    def __init__(self, rarity:str="uncommon", name="Bracken", description="A leavy maroon marauder", damage: int = 7, health: int = 6,
                 is_aggresive=False, is_hidden=True,
                 is_persistant=False) -> None:
         super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
@@ -173,22 +190,104 @@ class Bracken(Monster):
         return message
 
 class Jester(Monster):
-    def __init__(self, rarity: str, name="Jester", description="An ominous box with legs", damage: int = 100, health: int = 1000,
+    def __init__(self, rarity:str="rare", name="Jester", description="An ominous box with legs", damage: int = 100, health: int = 1000,
                   is_aggresive=False, is_hidden=False, is_persistant=True) -> None:
         super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
-        self.moves = 0 # How many rooms the ship has travelled since it was winding
-        self.catch = 0 # Counts the moves the Jester has made after being aggravated
+        self.rooms = 0 # How many rooms the ship has travelled since it was winding
+        self.wind = random.randint(6, 9) # Counts down until the jester is aggresive
+        self.have_we_met = False
     
+    def approach(self, msgs: list[str] = ["A box with legs appears behind you...",
+                                          "An ominious box with legs approaches!",
+                                          "It's a... box with legs?"]) -> str:
+
+        if self.aggresive:
+            return random.choice(["THE BANGS OF IT'S FOOTSTEPS FOLLOW YOU CEASELESSLY",
+                                  "TICK. TOCK.",
+                                  "STAND STILL. ACCEPT WHAT'S GETTING TO YOU."])
+        if self.wind <= 0:
+            return self.aggrevate()
+        
+        if self.have_we_met:
+            return random.choice(["The Chimes ring throughout the hall",
+                                  "That's the way the money goes.",
+                                  "The chimes become louder, somehow..."])        
+        
+        self.have_we_met = True
+        return super().approach(msgs)
+
+    def attack_response(self) -> str:
+        """If player is in the same room as the Jester, allow them to attack"""
+        if self.rooms != 0:
+            raise er.CannotReachFlag
+        
+        self.wind -= 1
+        return random.choice(["You got a bad feeling from doing that...",
+                              "I don't think that was the right call",
+                              "That didn't do anything..."])
+       
+    def run_response(self) -> str:
+        self.rooms += 1
+        self.wind -= 1
+        if self.aggresive:
+            return random.choice(["YES. IT'S ALL YOU CAN DO.",
+                                  "KEEP RUNNING.",
+                                  "FOOLISH TO THINK YOU CAN OUTRUN ME."])
+        
+        return random.choice(["The chimes echo throughtout the halls",
+                              "Merrily Merrily Merilly Merilly",
+                              "You look behind you and see it opening it's lid..."])
+
+    def progress_response(self, ship: Ship) -> Ship:
+        self.rooms += 1  
+        self.wind -=1     
+        return ship
+
+    def set_message(self, kill: str = "It found you. Tore at you. It didn't leave a trace.",
+                    progfail: str = "Progress failed",
+                    custom: str = "Custom Killed message") -> None:
+        return super().set_message(kill, progfail, custom)
+
+    def aggrevate(self, msgs: list[str] = ["THE JESTER IS COMING",
+                                           "POP GOES THE WEASEL",
+                                           "RUN WHILE YOU CAN. IT'S COMING"]) -> str:
+        return super().aggrevate(msgs)
+
     def attack(self, ship: Ship,
                 crit: int = 0, hit: int = 100, miss: int = 0, **kwargs) -> Ship:
-
+        """Instead of basic combat, the jester will wind, find the player and kill them"""
+        # Winding
+        if not self.aggresive:
+            self.wind -= 1
+        
+            if self.wind == 0:
+                ship.log = self.aggrevate()
+            else:
+                ship.log = random.choice(["It's winding down...",
+                                            "Round the town and back again",
+                                            "It's chimes are getting quicker... and quiter"])  
+            return ship
+    
+        # Chase
+        self.rooms -= 1
+        
+        if self.rooms == 0: # Kill
+            raise er.KilledFlag
+        else:
+            ship.log = random.choice(["IT'S GETTING CLOSER",
+                                      "KEEP RUNNING",
+                                      "IT WILL FIND YOU. KEEP GOING"])
         return ship
-        return super().attack(ship, crit, hit, miss, **kwargs)
 
 # -- MONSTER RELATED FUNCTIONS --
 def attack(**kwargs) -> Ship:
     ship:Ship = kwargs["ship"]
     monster:Monster = ship.events['monster']
+    weapon:Weapon = ship.current_weapon
+
+    if not weapon:
+        ship.log += "You don't have a weapon!"
+        return ship
 
     if not monster:
         ship.log += "You swing and swing and swing... but there is nothing there"
@@ -205,30 +304,39 @@ def attack(**kwargs) -> Ship:
                                   f"Dear God! It's already dead!"])
         return ship
 
-    ship.log += monster.aggrevate()
-     
+    try:
+        ship.log = monster.attack_response()
+    except er.CannotReachFlag:
+        ship.log = "You're in another room, You cannot attack"
+        return ship 
+
     # TODO: Instead of hardcoding these values, use values from the weapon the ship has
-    result = roll(miss=5, crit=20, hit=75)
+    result = roll(**weapon.stats)
     match result:
         case "miss":   
             ship.log += random.choice(["You missed!",
                                         "A swing and a miss!",
                                         "You missed. happens to the best of us."])
         case "crit":
-            monster.health -= (ship.damage * 1.5) // 1
+            monster.health -= (weapon.damage * 1.5) // 1
             ship.log = "\t -- CRITICAL HIT --"
-            ship.log += f"\nYou dealt {(ship.damage * 1.5) // 1} damage to the {str(monster)}. {random.choice(["Nice!", "Bravo!", "Magnificent!"])}"
+            ship.log += f"\nYou dealt {(weapon.damage * 1.5) // 1} damage to the {str(monster)}. {random.choice(["Nice!", "Bravo!", "Magnificent!"])}"
         case "hit":
-            monster.health -= ship.damage
-            ship.log += f"\nYou dealt {ship.damage} damage to the monster."
+            monster.health -= weapon.damage
+            ship.log += f"\nYou dealt {weapon.damage} damage to the {str(monster)}."
     
     if monster.is_dead():
         ship.log += f"\nThe {str(monster)} has been slained..."
     
+    weapon.uses -= 1
+    if weapon.uses <= 0:
+        ship.log += f"\nThe {weapon.name.title()} broke!"
+        weapon = None
+    
+    ship.current_weapon = weapon   
     ship.events['monster'] = monster
     return ship 
  
-
 def alert(**kwargs) -> Ship:
     ship = kwargs['ship']
     monster = ship.events['monster']
@@ -258,7 +366,6 @@ def alert(**kwargs) -> Ship:
 
     return ship
 
-
 def think(**kwargs) -> Ship:
     ship = kwargs['ship']
     try:
@@ -283,11 +390,9 @@ def progress(**kwargs):
 
     # TODO:If monster is alive, it will crit the player as it leaves.
     try: 
-        ship = monster.attack(ship, crit=100, hit=0, miss=0, is_progressing=True)
+        ship = monster.progress_response(ship)
     except AttributeError: # No monster 
         pass
-    
-    ship.events['monster'] = None # Resetting monster
     
     try:
         ship.progress()
@@ -329,9 +434,8 @@ wait.update({
     'alert': 0.05
 })
 
-
 GET_MONSTER = {
-    "rare": [Monster],
+    "rare": [Jester],
     "uncommon": [Bracken],
     "common": [Lootbugs]
 }
@@ -344,8 +448,7 @@ PROBABILITIES = {
 }
 
 def get_monster() -> Monster:
-    global PROBABILITIES
-    # Roll a dice
+    """Gets a monster"""
     result = roll(**PROBABILITIES)
     
     #TODO: Make rare and uncommon progressively more apparent.
@@ -354,4 +457,4 @@ def get_monster() -> Monster:
         raise er.NoMonsterFlag
     
     
-    return random.choice(GET_MONSTER[result])(rarity=result) # Gets a random monster
+    return random.choice(GET_MONSTER[result])() # Gets a random monster

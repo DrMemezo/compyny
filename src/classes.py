@@ -1,6 +1,13 @@
 import random
-from src.errors import *
-from src.roll import roll
+
+
+try:
+    from errors import *
+    from roll import roll
+except ModuleNotFoundError:
+    from src.errors import *
+    from src.roll import roll
+
 from pathlib import Path
 import csv
 
@@ -15,10 +22,20 @@ for path in PATHS.values():
     if not path.exists():
         raise FileNotFoundError
 
-def get_scrap_from(rarity):
-        """Gets the name, description (and damage from weapons)
-        for scraps"""
-        csv.rea
+def get_conts_from(path:Path):
+        """Gets the contents from the file paths..."""
+        with open(path) as file:
+            contents = list(csv.reader(file,delimiter='|', skipinitialspace=True))
+
+        return contents
+
+CONTENTS = {name:get_conts_from(path) for (name, path) in PATHS.items()}
+VAL_RANGE = {
+    "rare": [150,300],
+    "uncommon": [100,150],
+    "common": [50,100],
+    "weapon": [150,200]
+}
 
 
 class Event:
@@ -26,10 +43,7 @@ class Event:
         They have a rarity type, and the probability of an event occuring is linked to that type"""
 
     def __init__(self, rarity:str) -> None:
-        if rarity not in ["common", "uncommon", "rare"]:
-            raise ValueError("unsupported rarity")
         self.rarity = rarity
-        self.hidden:bool = random.choice([True, False])
 
     def is_hidden(self) -> bool:
         return self.hidden
@@ -41,9 +55,10 @@ class Scrap(Event):
     """Scraps are basically an event which occurs when a user walks into a new room
     They have a monetary value based on their rarity type"""
     def __init__(self,rarity:str,id:int,name:str="Scrap",
-                 description:str="Generic Scrap",
+                 description:str="Generic Scrap", is_hidden:bool= False,
                  value:int=50) -> None:
         super().__init__(rarity)
+        self.hidden = is_hidden
         self.id = id
         self.description = description
         self.name = name
@@ -60,19 +75,60 @@ class Scrap(Event):
             f"In the corner of your eye, you spotted a {self.name}"
         ])
 
+    @staticmethod
+    def get_from(rarity:str, id:int, concealed:None|bool=None):
+            """Gets the name, description (and damage from weapons)
+            for scraps"""
+            try:
+                scrap_info:list = random.choice(CONTENTS[rarity])
+            except KeyError:
+                raise ValueError(f"Unsupported Rarity; Recieved: {rarity}")
+            
+            name:str = scrap_info[0]
+            desc:str = scrap_info[1]
+            is_hidden:bool =  concealed if concealed else random.choice([True, False])
+            value:int = random.randint(*VAL_RANGE[rarity])
+            try:
+                damage:int = int(scrap_info[2])
+            except IndexError: # Not a Weapon
+                pass
+            else:
+                stats={"crit":20,"hit":75,"miss":5}
+                
+                return Weapon("weapon", id=id, damage=damage, stats=stats,
+                                name=name,
+                                description=desc,
+                                value=value)
+
+            return Scrap(rarity, id, 
+                         name=name,
+                         is_hidden=is_hidden,
+                        description=desc,value=value) 
+
+class Weapon(Scrap):
+    """Much like Scraps, it has a monetary value and can be collected. However, they boost damage of the player"""
+    def __init__(self, rarity: str, stats:dict[int], id: int, is_hidden:bool=False, name: str = "Scrap", description: str = "Generic Scrap", value: int = 50,
+                 damage:int=3, uses:None|int=None) -> None:
+        super().__init__(rarity, id, name, description,is_hidden, value)
+        self.damage = damage
+        self.uses = uses if uses else random.randint(2, 7)
+        self.stats = stats.copy()
+
 class Ship:
+    """This is the object representing the player. It holds all the stats it needs to"""
     def __init__(self, name:str="Johnathan doe",health:int=10) -> None:
         self.health = health 
         self.points = 0 # Points determined by scraps
-        self.current_scrap = None # Current scrap stored before progressing to the next room
         self.name = name 
+        
+        self.current_scrap:Scrap = None # Current scrap stored before progressing to the next room
+        self.current_weapon:Weapon = Weapon("weapon", id=99, damage=3, stats={"crit":20,"hit":75,"miss":5},
+                                    name="Company Issued Batons",
+                                     description="They look threatening, but are actually made out of cardboard to save money",
+                                     value=0, uses=1)
+        
         self.log:str = ""
-        self.damage = 3
-        self.chances:dict[int] = {
-            "crit": 20,
-            "hit": 70,
-            "miss": 10
-        }
+        
         self.exit_flag = RetreatFlag # Flag type
         self.insanity:int = 0 # The more insane the player gets, the rarer the monsters 
 
@@ -87,19 +143,17 @@ class Ship:
         limit = random.randint(3, 5)
         for id in range(0, limit):
             # Basic percentage
-            result:str = roll(common=50, uncommon=25, rare=5, nothing=20)
+            result:str = roll(common=30, uncommon=25, rare=5, weapon=30, nothing=10)
             
-            match result:
-                case "nothing":
-                    continue
-
-            try:
-                self.events['scrap'].append(Scrap(rarity=result, id=id))
-            except TypeError: # No scrap selected
+            if result == "nothing":
                 continue
 
+            self.events['scrap'].append(
+                Scrap.get_from(result, id)
+            )
 
-    def collect(self, scrap:Scrap):
+
+    def collect(self, scrap:Scrap|Weapon):
         if not isinstance(scrap, Scrap):
             raise TypeError("Tried to collect a non-scrap item")
         
@@ -109,6 +163,7 @@ class Ship:
         """Add scrap the total value, also modify rarities for monsters"""
         self.collect(self.current_scrap)
         self.current_scrap = None
+        self.current_weapon.id = 99 # To ensure it has a unique id before progressing.
     
     def is_dead(self):
         return self.health <= 0 

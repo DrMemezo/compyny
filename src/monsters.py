@@ -12,9 +12,16 @@ except ModuleNotFoundError:
     from src.utils import SFX
 
 import random
-from playsound import playsound
+from playsound import PlaysoundException
+from playsound import playsound as ps
 
-from classes import Ship
+def playsound(file) ->None:
+    try:
+        ps(file)
+    except TypeError:
+        file = str(file)
+        ps(file)
+
 
 class Monster(Event):
     """A Monster is an event which occurs and can damage the player."""
@@ -156,6 +163,10 @@ class Bracken(Monster):
                     custom: str = "Suddenly, you felt your neck twist and creak... until it snapped.") -> None:
         return super().set_message(kill=kill, progfail=progfail, custom=custom)
 
+    def attack_response(self) -> str:
+        self.stare_counter += 1
+        return super().attack_response()
+    
     def attack(self, ship: Ship, crit: int = 20, hit: int = 50, miss: int = 30, **kwargs) -> Ship:
         # A Bracken will kill the player in 3 moves if not stared at...
         self.moves += 1
@@ -180,7 +191,7 @@ class Bracken(Monster):
 
         """Stare at the bracken, same thing as alert_response, except it doesn't show the bracken""" 
         if self.is_hidden():
-            raise er.GenericFlag
+            raise AttributeError
         
         if self.aggresive:
             return random.choice(["You looked deeply into those blood red eyes.",
@@ -197,8 +208,6 @@ class Bracken(Monster):
                                      "The Bracken creeps closer"])
         
         return message
-
-        
 
     def alert_response(self) -> str:
         """If the player uses alert, it shows them that a bracken is here and 
@@ -323,36 +332,172 @@ class Hallucinations(Monster):
     def __init__(self, rarity: str = "common", name="Hallucination", description="spooky", damage: int = 7, health: int = 10, is_aggresive=False, is_hidden=False, is_persistant=False) -> None:
         super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
     
+    
+    def hallucinate(self, ship:Ship) -> Ship:
+        ship.log = random.choice(["There was something there! You know there was!",
+                                  "Hmmph. There was nothing there",
+                                    "Must've been the wind."])
+        ship.insanity += 10
+        ship.events['monster'] = None
+        return ship
+     
+    def approach(self, msgs: list[str] = ["Is that the voice of a little girl?",
+                                          "Something bad is coming your way!",
+                                          "You gotta run, captain!",
+                                          "The pitter patter of death approaches!"]) -> str:
+        return super().approach(msgs)
+
     # The following methods just raise the hallucinating flag
     def stare_response(self) -> str:
         raise er.HallucinatingFlag
-
-    def approach(self) -> str:
-        
-        
-        return random.choice(["LOOK BEHIND YOU", 
-                              "DROP EVERYTHING AND RUN",
-                              "YOU CAN FEEL IT CREEPING",
-                              "SOUNDS OF DEATH APPROACHES.",
-                              "RUN RUN RUN"])
-
     def attack_response(self) -> str:
         raise er.HallucinatingFlag
-    
     def alert_response(self):
         raise er.HallucinatingFlag
     # --   
-
     def progress_response(self, ship: Ship) -> Ship:
         ship.events['monster'] = None
         return ship
 
-    def attack(self, ship: Ship, crit: int = 0, hit: int = 100, miss: int = 0, **kwargs) -> Ship:
-        ship.log = random.choice(["no escape.", "TICK TOCK TICK TOCK", "GET OUT"])
+
+
+    def attack(self, ship: Ship, **kwargs) -> Ship:
+        ship.log = random.choice(["You feel as if something is following you",
+                                  "Is that a bracken in the corner?",
+                                  "You feel as if something is watching you...",
+                                  ""])
         ship.insanity += 3
         return ship
 
+class GhostGirl(Hallucinations, Monster):
+    def __init__(self, rarity: str = "common", name="Ghost Girl", description=":]", damage: int = 0, health: int = 1, is_aggresive=False, is_hidden=True, is_persistant=False) -> None:
+        super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
+        self.INITIAL_PATIENCE = 9
+        self.patience = self.INITIAL_PATIENCE
+
+    def approach(self) -> str:
+        return ""
+
+    def progress_response(self, ship: Ship) -> Ship:
+        """Disappears if the player hasn't been alerted of the little girl"""
+        if not self.persistant:
+            ship.events['monster'] = None
+            ship.insanity += 30
+        
+        self.hidden = True
+
+        return ship
+
+    def run_response(self) -> str:
+        if not self.persistant:
+            return ""
+        self.hidden = True
+
+        return random.choice(["The laugh of the little girl rings throughout the halls",
+                 "The dainty steps of the little girl keep approaching",
+                 "The laughing doesn't stop..."])
+
+    def hallucinate(self, ship: Ship) -> Ship:
+        # Case 1: The player is encountering the ghost girl
+        if not self.persistant:
+            self.hidden = False
+            self.persistant = True
+            ship.log = "You saw a little girl, before she disappeared. She was grinning widely."
+            ship.insanity += 50
+            return ship
+
+        # Case 2: The player has moved to a new room and is encountering the ghost girl
+        if self.is_hidden():
+            playsound(SFX["ghost"])
+            self.hidden = False
+            ship.log = random.choice(["The ghost girl is there. smiling",
+                                      ":)",
+                                      "The ghost girl is smiling"])
+            return ship
+        # Case 3: The player has already encountered the ghost girl in the room       
+        ship.insanity += 50
+        ship.log = random.choice(["Im already gone :)",
+                                  "w her e is s h?e",
+                                  "You fee ls  o di so rie nte  .d"])
+        return ship
+
+    def attack(self, ship: Ship, **kwargs) -> Ship:
+        if not self.persistant:
+            return ship
+        
+        self.patience -= 1
+        if self.patience <= 0:
+            raise er.KilledFlag
+        
+        def new_message():
+            msgs = ["Isn't this getting boring captain?",
+                    "Like it's the same thing over and over and o v e r a n d  o  v  e  r",
+                    "Don't you want more?",
+                    "Don't you want it to end?",
+                    "How long are you gonna keep doing this?",
+                    "Just leave. You know you want to.",
+                    "Really? You're still going?",
+                    "fine. i'll let you end :>"] 
+            i = self.INITIAL_PATIENCE - (self.patience + 1) 
+            return msgs[i]
+
+        ship.log = new_message()
+        
+        return ship
+
+    def set_message(self, kill: str = "You are dead. You bashed your skull into the wall, or killed yourself...or maybe just gave up :>", progfail: str = "Progress failed", custom: str = "Custom Killed message") -> None:
+        return super().set_message(kill, progfail, custom)   
+
+class Butler(Monster):
+    def __init__(self, rarity: str = "common", name="Butler", description="If a blobfish could look dapper...", damage: int = 5, health: int = 5, is_aggresive=False, is_hidden=False, is_persistant=False) -> None:
+        super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
+        self.patience = 4 # Gets aggresive when loses patience
     
+    def approach(self, msgs: list[str] = ["A rather disturbing man approaches!",
+                                          "You see a Butler sweeping away!",
+                                          "A mysterious butler sweeps away!"]) -> str:
+        return super().approach(msgs)
+
+    def attack_response(self) -> str:
+        return super().attack_response()
+
+    def aggrevate(self, msgs: list[str] = ["The Butler has pulled out a knife!",
+                                           "The Butler has had enough of your s^!t!",
+                                           "The Butler is gonna make you a mystery soon!"]) -> str:
+        return super().aggrevate(msgs)
+        self.patience = 0
+
+    def attack(self, ship: Ship, crit: int = 0, hit: int = 100, miss: int = 0, **kwargs) -> Ship:
+        if self.aggresive:
+            return super().attack(ship, crit, hit, miss, **kwargs)
+        self.patience -= 1
+        # Butler losing his patience
+        match self.patience:
+            case 3:
+                ship.log = "The Butler stops sweeping..."
+            case 2:
+                ship.log = "The Butler stares at you repulsively..." 
+            case 1:
+                ship.log = "The Butler has put his broom away... uh oh."
+            case 0:
+                ship.log = self.aggrevate()
+        return ship
+        
+    def slain_response(self, ship:Ship) -> Ship:
+        ship.log = "The Butler has fallen... and he can't get up!"
+        ship.log += "\n The Butler dropped an item!"
+        ship.events['scrap'].append(
+            Weapon("weapon", {"crit":20, "hit":20, "miss":60}, 50, 
+                   name="Kitchen Knife", description="A Pristine Knife, prime murder weapon",
+                   value=30, damage=6)
+        )
+        return ship
+
+    def set_message(self, kill: str = "In it's blind rage, the Butler struck your heart!",
+                    progfail: str = "As you were progressing, you felt a sharp pain in your spine", 
+                    custom: str = "Custom Killed message") -> None:
+        return super().set_message(kill, progfail, custom)
+
 # -- MONSTER RELATED FUNCTIONS --
 def attack(**kwargs) -> Ship:
     ship:Ship = kwargs["ship"]
@@ -368,9 +513,10 @@ def attack(**kwargs) -> Ship:
         ship.insanity += 5
         return ship
         
-    if monster.hidden:
+    if monster.hidden and not isinstance(monster, Hallucinations):
         ship.log += "You swing to the sounds of shuffling and scraping, but you do not hit anything..."
         return ship
+    
 
     
     if monster.is_dead():
@@ -385,9 +531,7 @@ def attack(**kwargs) -> Ship:
         ship.log = "You're in another room, You cannot attack"
         return ship 
     except er.HallucinatingFlag:
-        ship.log += "You swing and swing and swing... but there is nothing there"
-        ship.events['monster'] = None
-        ship.insanity += 5
+        ship = monster.hallucinate(ship)
         return ship
 
     # TODO: Instead of hardcoding these values, use values from the weapon the ship has
@@ -408,7 +552,11 @@ def attack(**kwargs) -> Ship:
             ship.log += f"\nYou dealt {weapon.damage} damage to the {str(monster)}."
     
     if monster.is_dead():
-        ship.log += f"\nThe {str(monster)} has been slained..."
+        try:
+            ship = monster.slain_response(ship)
+        except AttributeError:
+            ship.log += f"\nThe {str(monster)} has been slained..."
+            
     
     weapon.uses -= 1
     if weapon.uses <= 0:
@@ -421,7 +569,7 @@ def attack(**kwargs) -> Ship:
  
 def alert(**kwargs) -> Ship:
     ship:Ship = kwargs['ship']
-    monster = ship.events['monster']
+    monster:Monster = ship.events['monster']
     ship.log = ""
     ship.insanity += 5
     if monster is None: # No monster selected
@@ -438,10 +586,7 @@ def alert(**kwargs) -> Ship:
     except AttributeError: # This monster does not have a custom alert response
         pass 
     except er.HallucinatingFlag:
-        ship.log += "\n"
-        ship.log += random.choice(["You swear you saw something in the corner of your eye...",
-                                "Must've been the wind...",
-                                "Your eyes darted across the room, yet you discovered no threat"])
+        ship = monster.hallucinate(ship)
         return ship
         
     ship.log += f"\n{monster.name.upper()}\n\t{monster.description}\n"
@@ -476,16 +621,18 @@ def run(**kwargs):
 
 def stare(**kwargs) -> Ship:
     ship:Ship = kwargs['ship']
-
+    monster:Monster|Hallucinations = ship.events['monster']
     try:
-        ship.log = ship.events['monster'].stare_response()
-    except er.GenericFlag:
+        ship.log = monster.stare_response()
+    except AttributeError:
         ship.log = random.choice(["You stared into an eternal darkness",
                                   'What a "nice" "view" of this "wonderful" place',
                                   "You wanna hold staring competitions with ghosts? I wouldn't stop you..."])
+    except er.HallucinatingFlag:
+        ship = monster.hallucinate(ship)
     return ship 
 
-def progress(**kwargs):
+def progress(**kwargs) -> Ship:
     ship:Ship = kwargs['ship']
     monster:Monster = ship.events['monster']
 
@@ -507,7 +654,7 @@ def progress(**kwargs):
                              "Your flashlight flickers in the ominous darkness, yet you find your way to the next room."])
     return ship 
 
-def collect(**kwargs):
+def collect(**kwargs) -> Ship:
     ship = kwargs['ship']
     if isinstance(ship.events['monster'], Lootbugs):
         ship.log = ship.events['monster'].aggrevate()
@@ -539,25 +686,18 @@ wait.update({
 })
 
 GET_MONSTER = {
-    "rare": [Jester],
+    "rare": [Jester, GhostGirl],
     "uncommon": [Bracken],
-    "common": [Lootbugs]
+    "common": [Lootbugs, Butler],
+    "hallucination": [Hallucinations]
 }
 
-PROBABILITIES = {
-    "rare" : 5,
-    "uncommon" : 15,
-    "common": 35,
-    "nothing": 45
-}
 
 def get_monster(chance:Chance) -> Monster:
     """Gets a monster"""
-    return Hallucinations()
     result = chance.roll()
     
     if result == "nothing":
         raise er.NoMonsterFlag
-    
     
     return random.choice(GET_MONSTER[result])() # Gets a random monster

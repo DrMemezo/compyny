@@ -5,10 +5,13 @@ import sys
 
 def inspect(**kwargs) -> Ship:
     message = "There is nothing to inspect"
-    events:list[Event] = kwargs['events']
+    events:list[Scrap] = kwargs['events']
     ship:Ship = kwargs['ship']
     event_values = []
     for event in events:
+        if event.is_hidden():
+            continue
+
         event_values.append(f"{event.name.title()}, (id: '{event.id}') has a value of {event.value}\n")
     
     if event_values:
@@ -23,7 +26,7 @@ def find(**kwargs) -> Ship:
     ship:Ship = kwargs['ship']
     for event in events:
         try:
-            if event.is_hidden() and isinstance(event, Scrap):
+            if event.is_hidden():
                 event.show()
                 message += f"You Found a {event.name}, *{event.id}*\n"
         except:
@@ -50,45 +53,61 @@ def think(**kwargs) -> Ship:
     return ship
 
 def find_from_id(scrap_events:list[Scrap], id:int) -> Scrap:
-    for scrap in scrap_events:
+    for pos, scrap in enumerate(scrap_events):
         if scrap.is_hidden(): # Cannot collect hidden scraps
             continue
 
         if scrap.id == id: # Matching Ids
-            return scrap
+            return scrap_events.pop(pos)
     return None 
 
 def collect(**kwargs) -> Ship:
     events:list[Event] = kwargs['events']
     ship:Ship = kwargs['ship']
-    message = random.choice(["That is not a valid Id...", 
-                        "No time for mistakes, captain. Look at the id.",
-                        "What are you trying to collect, captain"])     
+    crnt_scrap: Scrap|None = ship.current_scrap
+
     try:
         collect_id = int(kwargs['subject'])
     except TypeError:
         # No ID given
-        message = random.choice(["No scrap was specified...",
+        ship.log = random.choice(["No scrap was specified...",
                                 "You tried collecting the air. It didnt work.",
                                 "What are you trying to collect, captain?"])
+        return ship
+    
     except ValueError:
         # Incorrect Id given
+        ship.log = random.choice(["That is not a valid Id...", 
+                            "No time for mistakes, captain. Look at the id.",
+                            "What are you trying to collect, captain"])     
+        return ship
+
+    # Already collected
+    try:
+        if crnt_scrap.id == collect_id: 
+            ship.log = "You have already collected this item\t...perhaps it was the wrong id?"
+            return ship
+    except AttributeError: # No crnt_scrap
         pass
-    else:
+
     # Trying to find if collect is in events
-        if collect_scrap := find_from_id(events, collect_id): # If id is of a valid scrap
-            try:
-                if ship.current_scrap.id == collect_id: # Already collected
-                    message = "You have already collected this item\t...perhaps it was the wrong id?"
-                else: # Different Id
-                    message = f"Switched out {ship.current_scrap.name}({ship.current_scrap.value}) for {collect_scrap.name}({collect_scrap.value})"
-            except AttributeError: # No scrap currently stored
-                message = f"Collected {collect_scrap.name.title()} for {collect_scrap.value}"
-            finally:
-                ship.current_scrap = collect_scrap
-                
-    ship.log = message
-    return ship             
+    if collect_scrap := find_from_id(events, collect_id): # If id is of a valid scrap
+        try:
+             # Different Id
+            ship.log = f"Switched out {ship.current_scrap.name}({ship.current_scrap.value}) for {collect_scrap.name}({collect_scrap.value})"            
+            ship.events['scrap'].append(ship.current_scrap)
+            ship.current_scrap = collect_scrap
+        except AttributeError: # No scrap currently stored
+            ship.log = f"Collected {collect_scrap.name.title()} for {collect_scrap.value}"
+            ship.current_scrap = collect_scrap
+        finally:
+            return ship
+    else:
+        # Incorrect Id given
+        ship.log = random.choice(["That is not a valid Id...", 
+                            "No time for mistakes, captain. Look at the id.",
+                            "What are you trying to collect, captain"])     
+        return ship
 
 def equip(**kwargs) -> Ship:
     """Equips a weapon that the ship has currently collected"""

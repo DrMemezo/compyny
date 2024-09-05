@@ -48,7 +48,6 @@ def print_intro():
     slow_print(f"\n\t{intro['description']}", wait=0.02)
     # TODO: Add a prompt to show entry into the bunker
 
-
 def get_intro() -> dict:
     """Gets a dictionary defined as {'moon': <moon>, 'description':<desc>}
     from moons.csv"""
@@ -63,13 +62,11 @@ def get_intro() -> dict:
     return random.choice(moons)
 
 
-
-
 def play(ship:Ship):
     global CONSOLE
     alive:bool = True 
     while alive:
-        
+        ship = get_events(ship=ship)
         try:
             for event in ship.events['scrap']:
                 if not event.is_hidden(): # Print event info
@@ -169,6 +166,14 @@ def show_run(ship:Ship) -> None:
 
 def get_events(ship:Ship):
     ship.get_scraps() # Get scrap events
+    monster:Monster|None = ship.events["monster"]
+    # Monster persistancy
+    try:
+        if monster.persistant:
+            return ship
+    except AttributeError:
+        pass
+    
     try:
         ship.events["monster"] = get_monster(ship.monster_chance)
     except NoMonsterFlag:

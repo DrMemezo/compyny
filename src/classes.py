@@ -109,7 +109,7 @@ class Scrap(Event):
 
 class Weapon(Scrap):
     """Much like Scraps, it has a monetary value and can be collected. However, they boost damage of the player"""
-    def __init__(self, rarity: str, stats:dict[int], id: int, is_hidden:bool=False, name: str = "Scrap", description: str = "Generic Scrap", value: int = 50,
+    def __init__(self, rarity: str, stats:dict[str,int|float], id: int, is_hidden:bool=False, name: str = "Scrap", description: str = "Generic Scrap", value: int = 50,
                  damage:int=3, uses:None|int=None) -> None:
         super().__init__(rarity, id, name, description,is_hidden, value)
         self.damage = damage
@@ -130,8 +130,8 @@ class Ship:
                                      value=0, uses=2)
         
         self.log:str = ""
-        self.scrap_chance:Chance = Chance(common=30, uncommon=25, rare=5, weapon=20, nothing=20)
-        self.monster_chance:Chance = Chance(rare=5, uncommon=15, common=35, nothing=45)
+        self.scrap_chance:Chance = Chance(common=20, uncommon=25, rare=5, weapon=15, nothing=35)
+        self.monster_chance:Chance = Chance(rare=0, uncommon=15, common=35, nothing=40, hallucination=10)
 
         self.exit_flag = RetreatFlag # Flag type
         self.insanity:int = 0 # The more insane the player gets, the rarer the monsters 
@@ -160,7 +160,6 @@ class Ship:
                 Scrap.get_from(result, id)
             )
 
-
     def collect(self, scrap:Scrap|Weapon):
         if not isinstance(scrap, Scrap):
             raise TypeError("Tried to collect a non-scrap item")
@@ -171,7 +170,7 @@ class Ship:
         """Add scrap the total value, also modify rarities for monsters"""
         self.collect(self.current_scrap)
         self.current_scrap = None
-        self.monster_chance.add_to(rare=self.insanity)
+        self.monster_chance.add_to(rare=(self.insanity * 0.2), hallucination=(self.insanity * 0.5))
         self.current_weapon.id = 99 # To ensure it has a unique id before progressing.
     
     def is_dead(self):

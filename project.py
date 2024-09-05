@@ -2,10 +2,6 @@
 # Console class from rich, to make text prettier to look at.
 from dependencies import *
 
-CONSOLE = Console()
-PATHS = {
-    'moons': 'assets/moons.csv'
-}
 
 def main():
     # Game's title card
@@ -20,9 +16,23 @@ def main():
     # End state
     end(main_ship)
 
+def validate_paths(path_dir:dict[str,Path|dict]) -> bool:
+    """Recursive function to check if the paths exist."""
+    for path in path_dir.values():
+        if type(path) == dict:
+            validate_paths(path)
+            continue
+        
+        if not path.exists(): # Base Case
+            raise FileNotFoundError(f"Path does not exits: {path}")
+        
+        if path.is_file():
+            continue
+
+
 def ship_init() -> Ship:
-    
-    
+    validate_paths(PATHS)
+    validate_paths(SFX)
     # slow_print("WHAT IS YOUR NAME,", wait=0.2, style=styles['default'])
     # slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
     # name = input().strip()
@@ -53,19 +63,6 @@ def get_intro() -> dict:
     return random.choice(moons)
 
 
-def slow_print(message:str, wait:float=0.1,
-                style:str="white", end:str="\n"):
-    """NOTE: Only pass strings!!"""
-    
-    if message == "": # Does not print whitespaces
-        return
-    
-    global CONSOLE
-
-    for char in message:
-        CONSOLE.print(char,style=style, end="")
-        sleep(wait)
-    print(end=end)    
 
 
 def play(ship:Ship):
@@ -118,6 +115,7 @@ def play(ship:Ship):
                 think_count += 1
             except RunFlag:
                 ship = show_run(ship=ship)
+                ship.insanity += 10
                 break
             except ProgressFailFlag:
                 ship.exit_flag = ProgressFailFlag
@@ -169,10 +167,10 @@ def show_run(ship:Ship) -> None:
         slow_print(ship.log, wait=wait['attack'], style=styles['attack'])
     return ship
 
-def get_events(ship):
+def get_events(ship:Ship):
     ship.get_scraps() # Get scrap events
     try:
-        ship.events["monster"] = get_monster()
+        ship.events["monster"] = get_monster(ship.monster_chance)
     except NoMonsterFlag:
         ship.events["monster"] = None
     return ship

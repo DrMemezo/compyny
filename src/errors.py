@@ -26,3 +26,11 @@ class CustomKilledFlag(BaseException):
 class CannotReachFlag(BaseException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+
+class GenericFlag(BaseException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
+class HallucinatingFlag(BaseException):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

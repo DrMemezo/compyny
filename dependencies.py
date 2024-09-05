@@ -7,5 +7,6 @@ from rich.console import Console
 from src.classes import Ship
 from src.errors import *
 import re
+from src.utils import *
 from src.options import OPTIONS
 from pathlib import Path

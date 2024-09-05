@@ -137,12 +137,13 @@ def overview(**kwargs):
     message += f"CURRENT SCRAP: "
 
     if crt_scrap is None:
-        message += "UNSELECTED"
+        message += "UNSELECTED\n"
     else:
         message += f"{crt_scrap.name} -- {crt_scrap.description}\n"
         message += f"\tPOINTS: {crt_scrap.value}\n"
-        message += f"\tRARITY: {crt_scrap.rarity.title()}"
+        message += f"\tRARITY: {crt_scrap.rarity.title()}\n"
 
+    message += f"INSANITY: {ship.insanity}\n"
     
     ship.log = message
     return ship

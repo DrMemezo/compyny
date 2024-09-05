@@ -3,20 +3,16 @@ import random
 
 try:
     from errors import *
-    from roll import roll
+    from roll import *
+    from utils import PATHS
 except ModuleNotFoundError:
     from src.errors import *
-    from src.roll import roll
+    from src.roll import *
+    from src.utils import PATHS
 
 from pathlib import Path
 import csv
 
-PATHS = {
-    "rare": Path("assets/scraps/rare.csv"),
-    "uncommon": Path("assets/scraps/uncommon.csv"),
-    "common": Path("assets/scraps/common.csv"),
-    "weapon": Path("assets/scraps/weapons.csv")
-}
 
 for path in PATHS.values():
     if not path.exists():
@@ -90,10 +86,16 @@ class Scrap(Event):
             value:int = random.randint(*VAL_RANGE[rarity])
             try:
                 damage:int = int(scrap_info[2])
+                # In the CSV file, this is stored as crit-hit-miss
+                stats_raw:str= list(map(int, scrap_info[3].split('-')))
+                stats = {
+                    "crit": stats_raw[0],
+                    "hit": stats_raw[1],
+                    "miss": stats_raw[2]
+                }
             except IndexError: # Not a Weapon
                 pass
             else:
-                stats={"crit":20,"hit":75,"miss":5}
                 
                 return Weapon("weapon", id=id, damage=damage, stats=stats,
                                 name=name,
@@ -112,7 +114,7 @@ class Weapon(Scrap):
         super().__init__(rarity, id, name, description,is_hidden, value)
         self.damage = damage
         self.uses = uses if uses else random.randint(2, 7)
-        self.stats = stats.copy()
+        self.chance:Chance = Chance(**stats)
 
 class Ship:
     """This is the object representing the player. It holds all the stats it needs to"""
@@ -125,10 +127,12 @@ class Ship:
         self.current_weapon:Weapon = Weapon("weapon", id=99, damage=3, stats={"crit":20,"hit":75,"miss":5},
                                     name="Company Issued Batons",
                                      description="They look threatening, but are actually made out of cardboard to save money",
-                                     value=0, uses=1)
+                                     value=0, uses=2)
         
         self.log:str = ""
-        
+        self.scrap_chance:Chance = Chance(common=30, uncommon=25, rare=5, weapon=20, nothing=20)
+        self.monster_chance:Chance = Chance(rare=5, uncommon=15, common=35, nothing=45)
+
         self.exit_flag = RetreatFlag # Flag type
         self.insanity:int = 0 # The more insane the player gets, the rarer the monsters 
 
@@ -143,10 +147,14 @@ class Ship:
         limit = random.randint(3, 5)
         for id in range(0, limit):
             # Basic percentage
-            result:str = roll(common=30, uncommon=25, rare=5, weapon=30, nothing=10)
+            result:str = self.scrap_chance.roll()
             
             if result == "nothing":
                 continue
+            if result == "rare":
+                self.scrap_chance.add_to(rare=5)
+            else:
+                self.scrap_chance.reset("rare")
 
             self.events['scrap'].append(
                 Scrap.get_from(result, id)
@@ -163,6 +171,7 @@ class Ship:
         """Add scrap the total value, also modify rarities for monsters"""
         self.collect(self.current_scrap)
         self.current_scrap = None
+        self.monster_chance.add_to(rare=self.insanity)
         self.current_weapon.id = 99 # To ensure it has a unique id before progressing.
     
     def is_dead(self):

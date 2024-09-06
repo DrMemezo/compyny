@@ -29,7 +29,6 @@ def validate_paths(path_dir:dict[str,Path|dict]) -> bool:
         if path.is_file():
             continue
 
-
 def ship_init() -> Ship:
     validate_paths(PATHS)
     validate_paths(SFX)
@@ -40,7 +39,6 @@ def ship_init() -> Ship:
     ship = get_events(ship)
     
     return ship
-    
 
 def print_intro():
     intro:dict = get_intro()
@@ -48,10 +46,9 @@ def print_intro():
     slow_print(f"\n\t{intro['description']}", wait=0.02)
     # TODO: Add a prompt to show entry into the bunker
 
-def get_intro() -> dict:
+def get_intro(path=PATHS["moons"]) -> dict:
     """Gets a dictionary defined as {'moon': <moon>, 'description':<desc>}
     from moons.csv"""
-    path = Path(PATHS["moons"]) # Path for Path in the path for path
     
     if not path.exists():
         raise FileNotFoundError
@@ -60,7 +57,6 @@ def get_intro() -> dict:
         moons:list = list(csv.DictReader(file,delimiter='|', skipinitialspace=True))
     
     return random.choice(moons)
-
 
 def play(ship:Ship):
     global CONSOLE
@@ -192,7 +188,6 @@ def show_retreat(ship:Ship):
         return
     
     slow_print(message, style="red on light_cyan1", wait=0.05)
-
 
 def print_think():
     random.seed()

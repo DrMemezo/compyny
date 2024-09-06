@@ -22,7 +22,6 @@ def playsound(file) ->None:
         file = str(file)
         ps(file)
 
-
 class Monster(Event):
     """A Monster is an event which occurs and can damage the player."""
     def __init__(self, rarity:str="common",name="Monster",description="The Monster Template",
@@ -34,7 +33,7 @@ class Monster(Event):
         self.name = name
         self.description = description
         self.aggresive = is_aggresive
-        self.hidden = is_hidden
+        self.hidden = is_hidden 
         self.health = health
         self.persistant = is_persistant
         self.set_message()
@@ -498,6 +497,8 @@ class Butler(Monster):
                     custom: str = "Custom Killed message") -> None:
         return super().set_message(kill, progfail, custom)
 
+class Portal(Monster):
+    pass
 # -- MONSTER RELATED FUNCTIONS --
 def attack(**kwargs) -> Ship:
     ship:Ship = kwargs["ship"]

@@ -546,7 +546,7 @@ def attack(**kwargs) -> Ship:
             monster.health -= (weapon.damage * 1.5) // 1
             playsound(SFX["attack"])
             ship.log += "\t -- CRITICAL HIT --"
-            ship.log += f"\nYou dealt {(weapon.damage * 1.5) // 1} damage to the {str(monster)}. {random.choice(["Nice!", "Bravo!", "Magnificent!"])}"
+            ship.log += f"\nYou dealt {(weapon.damage * 1.5) // 1} damage to the {str(monster)}. {random.choice(['Nice!', 'Bravo!', 'Magnificent!'])}"
         case "hit":
             monster.health -= weapon.damage
             playsound(SFX["attack"])

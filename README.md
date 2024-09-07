@@ -1,5 +1,7 @@
 # Com-py-ny
 
+![Com-py-ny logo](assets\compyny.png)
+
  Inspired by [Lethal Company](https://store.steampowered.com/app/1966720/Lethal_Company/)
 
 ## Prerequisites

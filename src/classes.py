@@ -30,7 +30,7 @@ VAL_RANGE = {
     "rare": [150,300],
     "uncommon": [100,150],
     "common": [50,100],
-    "weapon": [150,200]
+    "weapon": [70,125]
 }
 
 
@@ -130,8 +130,8 @@ class Ship:
                                      value=0, uses=2)
         
         self.log:str = ""
-        self.scrap_chance:Chance = Chance(common=20, uncommon=25, rare=5, weapon=15, nothing=35)
-        self.monster_chance:Chance = Chance(rare=0, uncommon=15, common=35, nothing=40, hallucination=10)
+        self.scrap_chance:Chance = Chance(common=30, uncommon=15, rare=5, weapon=10, nothing=40)
+        self.monster_chance:Chance = Chance(rare=0, uncommon=15, common=35, nothing=50, hallucination=0)
 
         self.exit_flag = RetreatFlag # Flag type
         self.insanity:int = 0 # The more insane the player gets, the rarer the monsters 
@@ -170,7 +170,9 @@ class Ship:
         """Add scrap the total value, also modify rarities for monsters"""
         self.collect(self.current_scrap)
         self.current_scrap = None
-        self.monster_chance.add_to(rare=(self.insanity * 0.2), hallucination=(self.insanity * 0.5))
+        self.monster_chance.add_to(rare=(self.insanity * 0.2),
+                                    hallucination=
+                                    min(50, self.insanity * 0.5))
         self.current_weapon.id = 99 # To ensure it has a unique id before progressing.
     
     def is_dead(self):

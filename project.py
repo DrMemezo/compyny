@@ -10,7 +10,7 @@ def main():
     # Initialising the ship:
     main_ship:Ship = ship_init()
     # Intro to the moon, a spooky description, etc. 
-    #DISABLED: print_intro()
+    print_intro()
     # Play state
     main_ship = play(main_ship)
     # End state
@@ -32,9 +32,6 @@ def validate_paths(path_dir:dict[str,Path|dict]) -> bool:
 def ship_init() -> Ship:
     validate_paths(PATHS)
     validate_paths(SFX)
-    # slow_print("WHAT IS YOUR NAME,", wait=0.2, style=styles['default'])
-    # slow_print("T R A V E L L E R ?", wait=0.2, style=styles['danger'])
-    # name = input().strip()
     ship = Ship()
     ship = get_events(ship)
     
@@ -110,8 +107,8 @@ def play(ship:Ship):
                 ship = show_run(ship=ship)
                 ship.insanity += 10
                 break
-            except ProgressFailFlag:
-                ship.exit_flag = ProgressFailFlag
+            except (ProgressFailFlag, KilledFlag, CustomKilledFlag) as e:
+                ship.exit_flag = type(e)
                 return ship
             
             ship.log = ""
@@ -122,11 +119,8 @@ def play(ship:Ship):
                 slow_print(ship.log, wait=0.05, style="orange_red1")
             except AttributeError: # No Monster selected
                 pass
-            except KilledFlag:
-                ship.exit_flag = KilledFlag
-                return ship
-            except CustomKilledFlag:
-                ship.exit_flag = CustomKilledFlag
+            except (KilledFlag, CustomKilledFlag) as e:
+                ship.exit_flag = type(e)
                 return ship
             except KeyError:
                 think_count += 1
@@ -189,27 +183,43 @@ def show_retreat(ship:Ship):
     
     slow_print(message, style="red on light_cyan1", wait=0.05)
 
+def parse_for_slowprint(msg:str, key:str) -> list:
+    """Returns an iterator with which slowprint can work with"""
+    pattern = f"({re.escape(key)})"
+
+    parsed = [x for x in re.split(pattern, msg.strip(), flags=re.IGNORECASE) if x != ""]
+    if re.match(key, parsed[0], flags=re.IGNORECASE):
+        parsed.insert(0, "")
+    return parsed
+        
+def slow_print_sequence(parsed:list[str],
+                        normal=("grey50", 0.02),
+                        special=("bold underline grey50", 0.025)):
+
+    try:
+        norm_style, norm_wait = normal
+        spec_style, spec_wait = special
+    except ValueError:
+        raise("Invalid parameters passed. Format:(style, wait)")
+
+
+    
+    for i, msg in enumerate(parsed):
+        if i % 2 == 0:
+            slow_print(msg, style=norm_style, wait=norm_wait, end="")
+            continue
+        slow_print(msg, style=spec_style, wait=spec_wait, end="")
+    print()
+    """Takes in a parsed list as input, and slow_prints it with special styles and intervals"""
 def print_think():
     random.seed()
     message = random.choice(["Think, captian. Think!",
                                 "Might be helpful to THINK that over",
                                 "Think carefully about what you need to do..."])
 
-    pattern = r"think(?:[?!.])?"
+    parsed = parse_for_slowprint(message, "think")
 
-    advice = re.split(pattern, message, flags=re.IGNORECASE)
-    advice = iter(advice)
-    find_res = re.findall(pattern, message, flags=re.IGNORECASE)
-    find_res = iter(find_res) # To convert list into an iterator
-
-
-    while True:
-        try:
-            slow_print(next(advice), style=styles['advise'], wait=wait['advise'], end='')
-            slow_print(next(find_res), style=styles['advise_bold'], wait=wait['advise'], end='')
-        except StopIteration:
-            break
-    print()
+    slow_print_sequence(parsed)
 
 def get_action() -> str:
     """Returns an action(i.e collect, find) and the object to perform it on"""
@@ -242,7 +252,7 @@ def end(ship:Ship):
     else:
         monster:Monster = ship.events['monster']
         message = monster.get_message(ship.exit_flag)
-        slow_print(message=message) #TODO: make this aesthetic
+        slow_print(message=message, wait=0.05) #TODO: make this aesthetic
 
     style:str = "green" 
     if ship.is_dead():

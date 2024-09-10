@@ -27,7 +27,7 @@ class CannotReachFlag(BaseException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-class GenericFlag(BaseException):
+class PortalFlag(BaseException):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 

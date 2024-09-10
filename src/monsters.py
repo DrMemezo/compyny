@@ -1,11 +1,11 @@
 try:
-    from classes import Event, Ship, Weapon
+    from classes import Event, Ship, Weapon, Scrap
     import errors as er
     from options import styles, wait
     from roll import Chance, roll
     from utils import SFX
 except ModuleNotFoundError:
-    from src.classes import Event, Ship, Weapon
+    from src.classes import Event, Ship, Weapon, Scrap
     import src.errors as er
     from src.options import styles, wait
     from src.roll import Chance, roll
@@ -14,6 +14,7 @@ except ModuleNotFoundError:
 import random
 from playsound import PlaysoundException
 from playsound import playsound as ps
+
 
 def playsound(file) ->None:
     try:
@@ -498,7 +499,86 @@ class Butler(Monster):
         return super().set_message(kill, progfail, custom)
 
 class Portal(Monster):
-    pass
+    def __init__(self, rarity: str = "uncommon", name="Portal", description="A gloomy spiral leading into eternal darkness. Care to see what's inside?", damage: int = 0, health: int = 10, is_aggresive=False, is_hidden=False, is_persistant=False) -> None:
+        super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
+        scrap_chance = random.randint(30, 60)
+        self.luck = Chance(scrap=scrap_chance,
+                            death=(100-scrap_chance))
+
+    def approach(self, msgs: list[str] = ["A portal filled with darkness opens up...",
+                                          "Is that... a portal?"]) -> str:
+        return super().approach(msgs)
+
+    def set_message(self, kill: str = "You stretched your hands into the portal, and a thousand hands pulled you in...", progfail: str = "Progress failed", custom: str = "Custom Killed message") -> None:
+        return super().set_message(kill, progfail, custom)
+
+    def attack_response(self) -> str:
+        result = self.luck.roll()
+        if result == "death":
+            raise er.KilledFlag
+
+        self.luck.add_to(death=20)
+        raise er.PortalFlag
+
+    def give_boon(self, ship:Ship) -> Ship:
+        scrap_ids = [id for id in ship.events['scrap']]
+        while True:
+            id = random.randint(5,100)
+            if id not in scrap_ids:
+                break
+        
+        boon = Scrap(rarity="rare", id=id, name="Boon of The Portal", description="An ancient artifact from a dimension unknown",
+                     value= random.randint(250,300))
+        ship.events['scrap'].append(boon)
+        ship.log = "You were bestowed a boon from the portal..."
+
+        return ship
+
+class Mine(Monster):
+    def __init__(self, rarity: str = "common", name="Mine", description="A 2060 era mine", damage: int = 30, health: int = 5, is_aggresive=False, is_hidden=True, is_persistant=False) -> None:
+        super().__init__(rarity, name, description, damage, health, is_aggresive, is_hidden, is_persistant)
+        self.detonate = Chance(explode=20, miss=80)        
+
+    def attack(self, ship: Ship, **kwargs) -> Ship:
+        try:
+            progressing = kwargs["is_progressing"]
+        except KeyError:
+            progressing = False
+
+        if self.detonate.roll() == "explode":
+            if kwargs["is_progressing"]:
+                raise er.ProgressFailFlag
+            raise er.KilledFlag
+
+        self.detonate.add_to(explode=10)
+        
+        return ship
+    
+    def alert_response(self) -> str:
+        
+        if self.is_hidden():
+            self.hidden = False
+            self.stare_response()
+            return "You spotted a mine!"
+        
+        return self.stare_response()
+        
+    def stare_response(self) -> str:
+        if self.is_hidden():
+            return ""
+        
+        self.detonate = Chance(explode=0, miss=90)
+        return random.choice(["You stare intently at the mine...",
+                              "Will it explode, will it wont?",
+                              "You feel as if it go off at any instant..."])
+
+    def set_message(self, kill: str = "You felt an uneven surface beneath your feet, before you exploded...",
+                    progfail: str = "As you were progressing, you stepped on a mine!",
+                    custom: str = "BOOM! Why'd you attack a mine? what did you think would happen?!") -> None:
+        return super().set_message(kill, progfail, custom)
+
+    def attack_response(self) -> str:
+        raise er.CustomKilledFlag
 # -- MONSTER RELATED FUNCTIONS --
 def attack(**kwargs) -> Ship:
     ship:Ship = kwargs["ship"]
@@ -533,6 +613,10 @@ def attack(**kwargs) -> Ship:
         return ship 
     except er.HallucinatingFlag:
         ship = monster.hallucinate(ship)
+        return ship
+    except er.PortalFlag:
+        monster:Portal 
+        ship = monster.give_boon(ship)
         return ship
 
     # TODO: Instead of hardcoding these values, use values from the weapon the ship has
@@ -579,7 +663,6 @@ def alert(**kwargs) -> Ship:
                                 "Must've been the wind...",
                                 "Your eyes darted across the room, yet you discovered no threat"])
         return ship
-    
 
     
     try:
@@ -688,8 +771,8 @@ wait.update({
 
 GET_MONSTER = {
     "rare": [Jester, GhostGirl],
-    "uncommon": [Bracken],
-    "common": [Lootbugs, Butler],
+    "uncommon": [Bracken, Portal],
+    "common": [Lootbugs, Butler, Mine],
     "hallucination": [Hallucinations]
 }
 

@@ -171,8 +171,9 @@ class Ship:
         self.collect(self.current_scrap)
         self.current_scrap = None
         self.monster_chance.add_to(rare=(self.insanity * 0.2),
-                                    hallucination=
-                                    min(50, self.insanity * 0.5))
+                                    hallucination=min(50, self.insanity * 0.5))
+        if self.insanity > 400:
+            self.monster_chance = Chance(rare=100, uncommon=0, common=0, hallucination=0)
         self.current_weapon.id = 99 # To ensure it has a unique id before progressing.
     
     def is_dead(self):

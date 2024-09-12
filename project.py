@@ -184,12 +184,29 @@ def show_retreat(ship:Ship):
     slow_print(message, style="red on light_cyan1", wait=0.05)
 
 def parse_for_slowprint(msg:str, key:str) -> list:
-    """Returns an iterator with which slowprint can work with"""
-    pattern = f"({re.escape(key)})"
+    """Returns an list with which slowprint can work with"""
+    pattern = rf"\b{re.escape(key)}\b"
+    matches = re.finditer(pattern, msg, flags=re.IGNORECASE)
+    last_end = 0
+    parsed = []
+    for match in matches:
+        start, end = match.span()
+        if last_end < start: # not the keyword
+            parsed.append(msg[last_end:start])
 
-    parsed = [x for x in re.split(pattern, msg.strip(), flags=re.IGNORECASE) if x != ""]
-    if re.match(key, parsed[0], flags=re.IGNORECASE):
+        # Add the keyword
+        parsed.append(match.group(0))
+        # update last_end
+        last_end = end
+
+    # If words remaining
+    if last_end < len(msg):
+        parsed.append(msg[last_end:])
+
+    # If first word is keyword
+    if re.match(pattern, parsed[0], flags=re.IGNORECASE):
         parsed.insert(0, "")
+
     return parsed
         
 def slow_print_sequence(parsed:list[str],
@@ -235,7 +252,7 @@ def validate_action(action):
     subject:None|str = None
 
     if match := re.findall(r" ", action):
-        if len(match) >= 3:
+        if len(match) >= 2:
             raise ValueError("More than three args given")
 
     if match := re.match(r"^(\w+) (\w+)$", action):
